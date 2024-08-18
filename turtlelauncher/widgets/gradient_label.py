@@ -61,3 +61,7 @@ class GradientLabel(QLabel):
 
     def is_anti_aliasing(self) -> bool:
         return self.anti_aliasing
+
+    def setText(self, text):
+        super().setText(text)
+        self.update()  # Trigger a repaint when text changes
