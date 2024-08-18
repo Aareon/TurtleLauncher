@@ -2,15 +2,26 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QS
 from PySide6.QtGui import  QPixmap, QPalette, QBrush
 from turtlelauncher.components.tweets_feed import TweetsFeed
 from turtlelauncher.components.featured_content import FeaturedContent
-from turtlelauncher.widgets.launcher import LauncherWidget
+from turtlelauncher.components.launcher import LauncherWidget
 from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.components.header import HeaderWidget
+from turtlelauncher.utils.config import Config
 from pathlib import Path
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 DATA = ASSETS / "data"
 IMAGES = ASSETS / "images"
+
+# User documents folder path
+USER_DOCUMENTS = Path.home() / "Documents"
+
+# Define Turtle Tool folder path
+# This is where the settings/preferences files will be stored
+TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
+if not TOOL_FOLDER.exists():
+    TOOL_FOLDER.mkdir(parents=True)
+
 
 class TurtleWoWLauncher(QMainWindow):
     def __init__(self):
@@ -74,6 +85,9 @@ class TurtleWoWLauncher(QMainWindow):
                 border: none;
             }
         """)
+        
+        # Load config
+        self.config = Config(TOOL_FOLDER / "launcher.json", self.logger)
     
     def show_image_overlay(self, pixmap):
         if self.image_overlay:
