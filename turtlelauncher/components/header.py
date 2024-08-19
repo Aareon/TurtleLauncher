@@ -37,6 +37,10 @@ class HeaderWidget(QFrame):
         # Spacer to push icons to the right
         layout.addStretch()
 
+        # Discord icon
+        discord_icon = IconButton(IMAGES / "discord.png", "https://discord.gg/turtlewow", 24)
+        layout.addWidget(discord_icon)
+
         # GitHub icon
         github_icon = IconButton(IMAGES / "github-white.png", "https://github.com/turtle-wow", 24)
         layout.addWidget(github_icon)
