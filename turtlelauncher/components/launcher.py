@@ -128,13 +128,13 @@ class LauncherWidget(QWidget):
         self.progress_bar.setValue(0)
         self.download_completed.emit()
 
-    @Slot()
-    def on_extraction_completed(self):
+    @Slot(str)
+    def on_extraction_completed(self, extracted_folder):
         self.progress_label.setText("Installation completed!")
         self.speed_label.setText("")
         self.progress_bar.setValue(100)
         self.progress_bar.stop_particle_effect()
-        self.extraction_completed.emit()
+        self.extraction_completed.emit(extracted_folder)
 
     @Slot(str)
     def on_error(self, error_message):

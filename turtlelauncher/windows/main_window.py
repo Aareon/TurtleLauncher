@@ -88,7 +88,7 @@ class TurtleWoWLauncher(QMainWindow):
             return False
         
         game_folder = Path(self.config.game_install_dir)
-        logger.info(f"Checking for pre-existing installation in: {game_folder}")
+        logger.info(f"Checking for installation in: {game_folder}")
         
         game_binary = game_folder / "WoW.exe"
         data_folder = game_folder / "Data"
@@ -98,12 +98,6 @@ class TurtleWoWLauncher(QMainWindow):
         
         if game_binary.exists() and data_folder.is_dir():
             logger.info("Valid game installation found")
-            version = self.get_game_version()
-            if version:
-                logger.info(f"Game version detected: {version}")
-                self.launcher_widget.display_version_info(version)
-            else:
-                logger.warning("Game version could not be detected")
             return True
         else:
             if not game_binary.exists():
@@ -215,6 +209,7 @@ class TurtleWoWLauncher(QMainWindow):
         self.launcher_widget = LauncherWidget()
         self.launcher_widget.download_completed.connect(self.on_download_completed)
         self.launcher_widget.extraction_completed.connect(self.on_extraction_completed)
+        logger.debug("Connecting extraction_completed signal from `launcher_widget` to `on_extraction_completed` slot")
         self.launcher_widget.error_occurred.connect(self.on_error)
         main_layout.addWidget(self.launcher_widget)
 
@@ -245,9 +240,10 @@ class TurtleWoWLauncher(QMainWindow):
     
     def update_game_install_dir(self, extracted_folder):
         install_dir = Path(self.config.game_install_dir)
-        self.config.game_install_dir = str(install_dir / extracted_folder)
+        new_install_dir = install_dir / extracted_folder
+        self.config.game_install_dir = str(new_install_dir)
         self.config.save()
-        logger.debug(f"Updated game_install_dir to: {self.config.game_install_dir}")
+        logger.info(f"Updated game_install_dir to: {self.config.game_install_dir}")
     
     def get_game_version(self):
         exe_path = Path(self.config.game_install_dir) / "WoW.exe"
