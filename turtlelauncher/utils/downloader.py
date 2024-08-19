@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool, QMetaObject,
 from loguru import logger
 import time
 from math import modf
+from aiohttp import ClientTimeout
 
 
 class WorkerSignals(QObject):
@@ -16,11 +17,13 @@ class WorkerSignals(QObject):
     error_occurred = Signal(str)
     total_size_updated = Signal(str)  # Changed to string
 
+
 class DownloadExtractWorker(QRunnable):
     STALL_TIMEOUT = 30  # seconds
     MAX_RETRIES = 5
     RETRY_DELAY = 5  # seconds
     SPEED_UPDATE_INTERVAL = 0.5  # seconds
+    LOG_INTERVAL = 10  # Log progress every 10 seconds
 
     def __init__(self, url, extract_path):
         super().__init__()
@@ -34,6 +37,7 @@ class DownloadExtractWorker(QRunnable):
         self.retry_count = 0
         self.last_speed_update_time = 0
         self.last_speed_string = "0 B/s"
+        self.last_log_time = 0  # For logging progress
         logger.info(f"Initialized DownloadExtractWorker for URL: {url}")
 
     def run(self):
@@ -75,7 +79,7 @@ class DownloadExtractWorker(QRunnable):
             if temp_filename.exists():
                 temp_filename.unlink()
                 logger.info(f"Temporary file removed: {temp_filename}")
-    
+
     async def check_resume_support(self, url):
         logger.info(f"Checking resume support for URL: {url}")
         try:
@@ -93,8 +97,12 @@ class DownloadExtractWorker(QRunnable):
         logger.info(f"Starting download: {url} to {filename}")
         total_size = 0
         downloaded_size = 0
+        chunk_size = 5 * 1024 * 1024  # 10 MB
         supports_resume = await self.check_resume_support(url)
-        
+
+        connector = aiohttp.TCPConnector()
+        timeout = ClientTimeout(total=None, connect=10, sock_read=30)
+
         while self.retry_count < self.MAX_RETRIES:
             try:
                 headers = {}
@@ -107,7 +115,7 @@ class DownloadExtractWorker(QRunnable):
                     downloaded_size = 0
                     logger.info("Starting download from the beginning")
 
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
                     async with session.get(url, headers=headers) as response:
                         if response.status == 416:
                             logger.info("File already fully downloaded")
@@ -120,7 +128,7 @@ class DownloadExtractWorker(QRunnable):
                             else:
                                 total_size = int(response.headers.get('Content-Length', 0))
                             logger.info(f"Total file size: {total_size} bytes")
-                        
+
                         if total_size > 0:
                             self.signals.total_size_updated.emit(str(total_size))  # Emit as string
                         else:
@@ -128,26 +136,32 @@ class DownloadExtractWorker(QRunnable):
 
                         mode = 'ab' if supports_resume and downloaded_size > 0 else 'wb'
                         with filename.open(mode) as f:
-                            async for chunk in response.content.iter_chunked(8192):
+                            async for chunk in response.content.iter_chunked(chunk_size):
                                 if self.is_cancelled:
                                     logger.warning("Download cancelled")
                                     raise asyncio.CancelledError()
-                                
+
                                 f.write(chunk)
                                 downloaded_size += len(chunk)
-                                
+
                                 current_time = time.time()
                                 if current_time - self.last_speed_update_time >= self.SPEED_UPDATE_INTERVAL:
-                                    percent = int((downloaded_size / total_size) * 100) if total_size > 0 else 0
+                                    if total_size > 0:
+                                        percent = int((downloaded_size / total_size) * 100)
+                                    else:
+                                        percent = 0
                                     speed = self.calculate_speed(downloaded_size, current_time)
-                                    #logger.debug(f"Download progress: {percent}%, Speed: {speed}")
                                     self.signals.progress_updated.emit(percent, speed)
                                     self.last_speed_update_time = current_time
+
+                                if current_time - self.last_log_time >= self.LOG_INTERVAL:
+                                    logger.info(f"Download progress: {percent}%, Speed: {speed}")
+                                    self.last_log_time = current_time
 
                                 if self.is_stalled(downloaded_size):
                                     logger.warning("Download stalled. Retrying...")
                                     raise asyncio.TimeoutError()
-                                
+
                                 self.last_downloaded_size = downloaded_size
                                 self.last_progress_time = current_time
 
@@ -165,7 +179,7 @@ class DownloadExtractWorker(QRunnable):
                 await asyncio.sleep(self.RETRY_DELAY)
 
         raise Exception("Max retries reached. Download failed.")
-    
+
     def is_stalled(self, current_size):
         if time.time() - self.last_progress_time > self.STALL_TIMEOUT:
             return current_size == self.last_downloaded_size
@@ -189,15 +203,19 @@ class DownloadExtractWorker(QRunnable):
                 if self.is_cancelled:
                     logger.warning("Extraction cancelled")
                     raise asyncio.CancelledError()
-                
+
                 if not extracted_folder and not file.filename.startswith('__MACOSX'):
                     extracted_folder = file.filename.split('/')[0]
-                
+
                 zip_ref.extract(file, extract_path)
                 extracted_size += file.file_size
                 percent = int((extracted_size / total_size) * 100)
-                #logger.debug(f"Extraction progress: {percent}%")
                 self.signals.progress_updated.emit(percent, "Extracting...")
+
+                current_time = time.time()
+                if current_time - self.last_log_time >= self.LOG_INTERVAL:
+                    logger.info(f"Extraction progress: {percent}%")
+                    self.last_log_time = current_time
 
         logger.info("Extraction completed successfully")
         return extracted_folder
@@ -218,6 +236,7 @@ class DownloadExtractWorker(QRunnable):
         self.is_cancelled = True
         if self.loop and self.loop.is_running():
             self.loop.call_soon_threadsafe(self.loop.stop)
+
 
 class DownloadExtractUtility(QObject):
     progress_updated = Signal(str, str)  # percent, speed
@@ -254,7 +273,7 @@ class DownloadExtractUtility(QObject):
         self.current_worker.signals.extraction_completed.connect(self.on_extraction_completed)
         self.current_worker.signals.error_occurred.connect(self.on_error)
         self.current_worker.signals.total_size_updated.connect(self.on_total_size_updated)  # New connection
-        
+
         self.is_downloading = True
         self.thread_pool.start(self.current_worker)
 
@@ -267,7 +286,6 @@ class DownloadExtractUtility(QObject):
 
     @Slot(int, str)
     def on_progress_updated(self, percent, speed):
-        #logger.debug(f"Download progress: {percent}%, Speed: {speed}")
         self.progress_updated.emit(str(percent), speed)
 
     @Slot()

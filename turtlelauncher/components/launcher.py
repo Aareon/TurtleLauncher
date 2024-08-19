@@ -16,7 +16,7 @@ IMAGES = ASSETS / "images"
 
 class LauncherWidget(QWidget):
     download_completed = Signal()
-    extraction_completed = Signal()
+    extraction_completed = Signal(str)
     error_occurred = Signal(str)
 
     def __init__(self):
@@ -29,6 +29,8 @@ class LauncherWidget(QWidget):
         self.download_utility.error_occurred.connect(self.on_error)
         self.download_utility.status_changed.connect(self.on_status_changed)
         self.download_utility.total_size_updated.connect(self.set_total_file_size)
+        #self.download_utility.verification_started.connect(self.on_verification_started)
+        #self.download_utility.verification_completed.connect(self.on_verification_completed)
 
     def initUI(self):
         main_layout = QVBoxLayout(self)
@@ -113,9 +115,11 @@ class LauncherWidget(QWidget):
 
     @Slot(str, str)
     def update_progress(self, percent, speed):
-        percent_int = int(float(percent))  # Convert percent to integer
+        percent_int = int(float(percent))
         if self.progress_label.text().startswith("Extracting"):
             self.progress_label.setText(f"Extracting... {percent_int}%")
+        elif self.progress_label.text().startswith("Verifying"):
+            self.progress_label.setText(f"Verifying... {percent_int}%")
         else:
             self.progress_label.setText(f"Downloading... {percent_int}%")
         self.speed_label.setText(speed)
@@ -123,10 +127,26 @@ class LauncherWidget(QWidget):
 
     @Slot()
     def on_download_completed(self):
-        self.progress_label.setText("Extracting...")
+        self.progress_label.setText("Download completed. Preparing for verification...")
+        self.speed_label.setText("")
+        self.progress_bar.setValue(100)
+    
+    @Slot()
+    def on_verification_started(self):
+        self.progress_label.setText("Verifying download...")
         self.speed_label.setText("")
         self.progress_bar.setValue(0)
-        self.download_completed.emit()
+    
+    @Slot(bool)
+    def on_verification_completed(self, is_valid):
+        if is_valid:
+            self.progress_label.setText("Verification successful. Preparing extraction...")
+            self.progress_bar.setValue(100)
+        else:
+            self.progress_label.setText("Verification failed. Please try again.")
+            self.progress_bar.setValue(0)
+            self.progress_bar.stop_particle_effect()
+            self.error_occurred.emit("Checksum verification failed")
 
     @Slot(str)
     def on_extraction_completed(self, extracted_folder):
