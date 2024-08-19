@@ -29,6 +29,7 @@ class LauncherWidget(QWidget):
         self.download_utility.download_completed.connect(self.on_download_completed)
         self.download_utility.extraction_completed.connect(self.on_extraction_completed)
         self.download_utility.error_occurred.connect(self.on_error)
+        self.download_utility.status_changed.connect(self.on_status_changed)
 
     def initUI(self):
         main_layout = QVBoxLayout(self)
@@ -66,9 +67,8 @@ class LauncherWidget(QWidget):
         main_layout.addLayout(progress_info_layout)
 
         self.progress_bar = GradientProgressBar()
-        self.progress_bar.setAnimationSpeed(0.5)  # Set animation speed (pixels per frame)
-        self.progress_bar.setAnimationFrequency(0.5)  # One cycle every 2 seconds
-        self.progress_bar.setGradientWidth(300) # Set the width of the gradient to 300 pixels
+        self.progress_bar.setAnimationSpeed(0.5)
+        self.progress_bar.setGradientWidth(300)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setFixedHeight(20)
@@ -114,7 +114,7 @@ class LauncherWidget(QWidget):
 
     @Slot()
     def on_download_completed(self):
-        self.progress_label.setText("Download completed. Extracting...")
+        self.progress_label.setText("Extracting...")
         self.speed_label.setText("")
         self.percent_label.setText("0%")
         self.progress_bar.setValue(0)
@@ -126,12 +126,21 @@ class LauncherWidget(QWidget):
         self.speed_label.setText("")
         self.percent_label.setText("100%")
         self.progress_bar.setValue(100)
+        self.progress_bar.stop_particle_effect()
         self.extraction_completed.emit()
 
     @Slot(str)
     def on_error(self, error_message):
         self.progress_label.setText(f"Error: {error_message}")
+        self.progress_bar.stop_particle_effect()
         self.error_occurred.emit(error_message)
+    
+    @Slot(bool)
+    def on_status_changed(self, is_downloading):
+        if is_downloading:
+            self.progress_bar.start_particle_effect()
+        else:
+            self.progress_bar.stop_particle_effect()
 
     def start_download(self, url, extract_path):
         self.progress_label.setText("Preparing download...")

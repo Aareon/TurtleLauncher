@@ -38,8 +38,11 @@ class HeaderWidget(QFrame):
         layout.addStretch()
 
         # Discord icon
-        discord_icon = IconButton(IMAGES / "discord.png", "https://discord.gg/turtlewow", 24)
+        discord_icon = IconButton(IMAGES / "discord.png", "https://discord.gg/turtlewow", 28)
         layout.addWidget(discord_icon)
+
+        # Add spacer between icons (full icon width)
+        layout.addSpacing(24)
 
         # GitHub icon
         github_icon = IconButton(IMAGES / "github-white.png", "https://github.com/turtle-wow", 24)

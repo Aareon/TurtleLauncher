@@ -23,10 +23,11 @@ class OverlayWidget(QWidget):
 
 class FirstLaunchDialog(QDialog):
     def __init__(self, parent=None):
-        super().__init__(parent, Qt.WindowType.FramelessWindowHint)
+        super().__init__(parent, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         logger.debug("Initializing FirstLaunchDialog")
         self.setWindowTitle("Turtle WoW Launcher Setup")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setModal(True)  # Set the dialog as modal
 
         # For dragging
         self.dragging = False
