@@ -6,15 +6,14 @@ from PySide6.QtCore import Qt, Signal
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.widgets.tweet import TweetWidget
-import logging
 from pathlib import Path
+
+from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 FONTS = ASSETS / "fonts"
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 class TweetsFeed(QWidget):
     image_clicked = Signal(QPixmap)

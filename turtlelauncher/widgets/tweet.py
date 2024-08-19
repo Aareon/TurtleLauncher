@@ -5,14 +5,12 @@ from PySide6.QtGui import QPixmap, QFont, QCursor
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from pathlib import Path
-import logging
+from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 FONTS = ASSETS / "fonts"
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 class TweetWidget(QFrame):
     image_clicked = Signal(QPixmap)

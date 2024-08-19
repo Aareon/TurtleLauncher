@@ -2,14 +2,12 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget
 from PySide6.QtGui import QPixmap, QPainter, QColor, QMouseEvent
 from PySide6.QtCore import Qt, QRect, QEvent, QPoint
 from pathlib import Path
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 IMAGES = ASSETS / "images"
+
 
 class OverlayWidget(QWidget):
     def __init__(self, parent=None):

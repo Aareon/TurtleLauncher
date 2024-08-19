@@ -2,11 +2,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QFrame
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from pathlib import Path
-import logging
+from loguru import logger
 from turtlelauncher.widgets.icon_button import IconButton
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -45,14 +42,14 @@ class HeaderWidget(QFrame):
         layout.addSpacing(24)
 
         # GitHub icon
-        github_icon = IconButton(IMAGES / "github-white.png", "https://github.com/turtle-wow", 24)
+        github_icon = IconButton(IMAGES / "github-white.png", "https://github.com/Aareon/TurtleLauncher", 24)
         layout.addWidget(github_icon)
 
         # Add spacer between icons (full icon width)
         layout.addSpacing(24)
 
         # Patreon icon
-        patreon_icon = IconButton(IMAGES / "patreon-icon.png", "https://www.patreon.com/turtlewow", 24)
+        patreon_icon = IconButton(IMAGES / "patreon-icon.png", "https://www.patreon.com/askully", 24)
         layout.addWidget(patreon_icon)
 
         # Set semi-transparent background color
@@ -66,5 +63,3 @@ class HeaderWidget(QFrame):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        logger.debug(f"Header widget size: {self.size()}")
-        logger.debug(f"Header widget background color: {self.palette().color(self.backgroundRole()).name()}")

@@ -4,17 +4,17 @@ import zipfile
 import tempfile
 from pathlib import Path
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool, QMetaObject, Qt, Slot
-import logging
+from loguru import logger
 import time
-
-logger = logging.getLogger(__name__)
+from math import modf
 
 
 class WorkerSignals(QObject):
     progress_updated = Signal(int, str)
     download_completed = Signal()
-    extraction_completed = Signal()
+    extraction_completed = Signal(str)  # Now passes the extracted folder name
     error_occurred = Signal(str)
+    total_size_updated = Signal(str)  # Changed to string
 
 class DownloadExtractWorker(QRunnable):
     STALL_TIMEOUT = 30  # seconds
@@ -61,9 +61,9 @@ class DownloadExtractWorker(QRunnable):
             logger.info("Download completed")
 
             logger.info(f"Starting extraction to {self.extract_path}")
-            await self.extract_zip(temp_filename, self.extract_path)
-            self.signals.extraction_completed.emit()
-            logger.info("Extraction completed")
+            extracted_folder = await self.extract_zip(temp_filename, self.extract_path)
+            self.signals.extraction_completed.emit(extracted_folder)
+            logger.info(f"Extraction completed. Extracted folder: {extracted_folder}")
 
         except asyncio.CancelledError:
             logger.warning("Download cancelled")
@@ -120,6 +120,11 @@ class DownloadExtractWorker(QRunnable):
                             else:
                                 total_size = int(response.headers.get('Content-Length', 0))
                             logger.info(f"Total file size: {total_size} bytes")
+                        
+                        if total_size > 0:
+                            self.signals.total_size_updated.emit(str(total_size))  # Emit as string
+                        else:
+                            logger.warning("Total size is 0 or negative, not emitting")
 
                         mode = 'ab' if supports_resume and downloaded_size > 0 else 'wb'
                         with filename.open(mode) as f:
@@ -135,7 +140,7 @@ class DownloadExtractWorker(QRunnable):
                                 if current_time - self.last_speed_update_time >= self.SPEED_UPDATE_INTERVAL:
                                     percent = int((downloaded_size / total_size) * 100) if total_size > 0 else 0
                                     speed = self.calculate_speed(downloaded_size, current_time)
-                                    logger.debug(f"Download progress: {percent}%, Speed: {speed}")
+                                    #logger.debug(f"Download progress: {percent}%, Speed: {speed}")
                                     self.signals.progress_updated.emit(percent, speed)
                                     self.last_speed_update_time = current_time
 
@@ -177,19 +182,25 @@ class DownloadExtractWorker(QRunnable):
         logger.info(f"Starting extraction: {zip_path} to {extract_path}")
         total_size = sum(file.file_size for file in zipfile.ZipFile(zip_path).infolist())
         extracted_size = 0
+        extracted_folder = None
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             for file in zip_ref.infolist():
                 if self.is_cancelled:
                     logger.warning("Extraction cancelled")
                     raise asyncio.CancelledError()
+                
+                if not extracted_folder and not file.filename.startswith('__MACOSX'):
+                    extracted_folder = file.filename.split('/')[0]
+                
                 zip_ref.extract(file, extract_path)
                 extracted_size += file.file_size
                 percent = int((extracted_size / total_size) * 100)
-                logger.debug(f"Extraction progress: {percent}%")
+                #logger.debug(f"Extraction progress: {percent}%")
                 self.signals.progress_updated.emit(percent, "Extracting...")
 
         logger.info("Extraction completed successfully")
+        return extracted_folder
 
     @staticmethod
     def format_speed(speed):
@@ -209,17 +220,19 @@ class DownloadExtractWorker(QRunnable):
             self.loop.call_soon_threadsafe(self.loop.stop)
 
 class DownloadExtractUtility(QObject):
-    progress_updated = Signal(int, str)  # percent, speed
+    progress_updated = Signal(str, str)  # percent, speed
     download_completed = Signal()
-    extraction_completed = Signal()
+    extraction_completed = Signal(str)  # Now emits the extracted folder name
     error_occurred = Signal(str)
     status_changed = Signal(bool)  # True if downloading, False otherwise
+    total_size_updated = Signal(str)  # Changed to string
 
     def __init__(self):
         super().__init__()
         self.thread_pool = QThreadPool()
         self.current_worker = None
         self._is_downloading = False
+        self.current_phase = "Downloading"
         logger.info("DownloadExtractUtility initialized")
 
     @property
@@ -240,6 +253,7 @@ class DownloadExtractUtility(QObject):
         self.current_worker.signals.download_completed.connect(self.on_download_completed)
         self.current_worker.signals.extraction_completed.connect(self.on_extraction_completed)
         self.current_worker.signals.error_occurred.connect(self.on_error)
+        self.current_worker.signals.total_size_updated.connect(self.on_total_size_updated)  # New connection
         
         self.is_downloading = True
         self.thread_pool.start(self.current_worker)
@@ -253,19 +267,21 @@ class DownloadExtractUtility(QObject):
 
     @Slot(int, str)
     def on_progress_updated(self, percent, speed):
-        logger.debug(f"Progress update: {percent}%, Speed: {speed}")
-        self.progress_updated.emit(percent, speed)
+        #logger.debug(f"Download progress: {percent}%, Speed: {speed}")
+        self.progress_updated.emit(str(percent), speed)
 
     @Slot()
     def on_download_completed(self):
         logger.info("Download completed")
+        self.current_phase = "Extracting"
         self.download_completed.emit()
 
-    @Slot()
-    def on_extraction_completed(self):
-        logger.info("Extraction completed")
+    @Slot(str)
+    def on_extraction_completed(self, extracted_folder):
+        logger.info(f"Extraction completed. Extracted folder: {extracted_folder}")
         self.is_downloading = False
-        self.extraction_completed.emit()
+        self.current_phase = "Completed"
+        self.extraction_completed.emit(extracted_folder)
 
     @Slot(str)
     def on_error(self, error_message):
@@ -273,18 +289,16 @@ class DownloadExtractUtility(QObject):
         self.is_downloading = False
         self.error_occurred.emit(error_message)
 
-
-# Logging configuration
-def configure_logging():
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
-    
-    # Set more verbose logging for our module
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-    
-    # Set less verbose logging for third-party libraries
-    logging.getLogger('aiohttp').setLevel(logging.WARNING)
-    logging.getLogger('asyncio').setLevel(logging.WARNING)
-
-configure_logging()
+    @Slot(str)
+    def on_total_size_updated(self, total_size_str):
+        try:
+            total_size = int(total_size_str)
+            if total_size > 0:
+                logger.info(f"Total file size: {total_size} bytes")
+                self.total_size_updated.emit(total_size_str)
+            else:
+                logger.warning(f"Invalid total file size received: {total_size}")
+                self.total_size_updated.emit("0")
+        except ValueError:
+            logger.error(f"Invalid total size string received: {total_size_str}")
+            self.total_size_updated.emit("0")

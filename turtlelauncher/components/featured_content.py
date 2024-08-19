@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QStackedWidget
-from PySide6.QtGui import QPixmap, QFont, QPalette, QBrush, QColor, QPainter
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget
+from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
 from PySide6.QtCore import Qt, QSize
 
 from pathlib import Path
@@ -10,63 +10,74 @@ HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 DATA = HERE / "data"
 IMAGES = ASSETS / "images"
+FONTS = ASSETS / "fonts"
 
 class FeaturedContent(QFrame):
     def __init__(self, content_type="image", video_id=None, featured_text=None, featured_image=None, attribution=None):
         super().__init__()
         self.setFrameStyle(QFrame.NoFrame)
         
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(15, 15, 15, 15)
+        self.layout.setSpacing(10)
+
+        font_filename = "FontinSans_Cyrillic_R_46b.ttf"
+        font_id = QFontDatabase.addApplicationFont(str((FONTS / font_filename).absolute()))
+        if font_id != -1:
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+        else:
+            font_family = "Arial"
 
         # Title
         title = GradientLabel("Featured Content", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Arial", 16, QFont.Bold))
-        layout.addWidget(title)
+        title.setFont(QFont(font_family, 16, QFont.Bold))
+        self.layout.addWidget(title)
         
         # Stacked Widget to switch between image and video
         self.stacked_widget = QStackedWidget()
-        layout.addWidget(self.stacked_widget)
+        self.layout.addWidget(self.stacked_widget)
 
         # Featured Image
-        featured_image_label = QLabel()
+        self.featured_image_label = QLabel()
         if featured_image:
             pixmap = QPixmap(featured_image)
         else:
             pixmap = QPixmap(IMAGES / "feature_image.png")
-        featured_image_label.setPixmap(pixmap.scaled(QSize(630, 353), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        featured_image_label.setAlignment(Qt.AlignCenter)
-        self.stacked_widget.addWidget(featured_image_label)
+        self.featured_image_label.setPixmap(pixmap.scaled(QSize(630, 353), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.featured_image_label.setAlignment(Qt.AlignCenter)
+        self.stacked_widget.addWidget(self.featured_image_label)
 
         # YouTube Video
+        self.youtube_widget = None
         if video_id:
-            youtube_widget = YouTubeVideoWidget(video_id)
-            self.stacked_widget.addWidget(youtube_widget)
+            self.youtube_widget = YouTubeVideoWidget(video_id)
+            self.stacked_widget.addWidget(self.youtube_widget)
 
         # Set the current widget based on content_type
         if content_type == "video" and video_id:
-            self.stacked_widget.setCurrentWidget(youtube_widget)
+            self.stacked_widget.setCurrentWidget(self.youtube_widget)
         else:
-            self.stacked_widget.setCurrentWidget(featured_image_label)
+            self.stacked_widget.setCurrentWidget(self.featured_image_label)
         
         # Featured Text
+        self.featured_text_label = None
         if featured_text is not None:
-            featured_text_label = QLabel(featured_text)
-            featured_text_label.setWordWrap(True)
-            featured_text_label.setAlignment(Qt.AlignCenter)
-            featured_text_label.setFont(QFont("Arial", 11))
-            featured_text_label.setStyleSheet("color: #CCCCCC;")
-            layout.addWidget(featured_text_label)
+            self.featured_text_label = QLabel(featured_text)
+            self.featured_text_label.setWordWrap(True)
+            self.featured_text_label.setAlignment(Qt.AlignCenter)
+            self.featured_text_label.setFont(QFont("Arial", 11))
+            self.featured_text_label.setStyleSheet("color: #CCCCCC;")
+            self.layout.addWidget(self.featured_text_label)
         
         # Attribution Text
+        self.attribution_label = None
         if attribution is not None:
-            attribution_label = QLabel(attribution)
-            attribution_label.setAlignment(Qt.AlignCenter)
-            attribution_label.setFont(QFont("Arial", 8))
-            attribution_label.setStyleSheet("color: #FF539C;")
-            layout.addWidget(attribution_label)
+            self.attribution_label = QLabel(attribution)
+            self.attribution_label.setAlignment(Qt.AlignCenter)
+            self.attribution_label.setFont(QFont("Arial", 8))
+            self.attribution_label.setStyleSheet("color: #FF539C;")
+            self.layout.addWidget(self.attribution_label)
 
         self.setStyleSheet("""
             QLabel {
@@ -75,7 +86,7 @@ class FeaturedContent(QFrame):
         """)
 
         # Add stretch to push content to the top
-        layout.addStretch()
+        self.layout.addStretch()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -88,3 +99,37 @@ class FeaturedContent(QFrame):
         painter.drawRoundedRect(self.rect(), 8, 8)
         
         super().paintEvent(event)
+
+    def set_fullscreen(self, is_fullscreen):
+        if is_fullscreen and self.youtube_widget:
+            # Remove other widgets
+            self.layout.removeWidget(self.featured_text_label)
+            self.layout.removeWidget(self.attribution_label)
+            if self.featured_text_label:
+                self.featured_text_label.hide()
+            if self.attribution_label:
+                self.attribution_label.hide()
+            
+            # Expand video to fill the space
+            self.youtube_widget.setFixedHeight(self.height() - 60)  # Adjust for padding
+        else:
+            # Restore original layout
+            if self.featured_text_label:
+                self.layout.addWidget(self.featured_text_label)
+                self.featured_text_label.show()
+            if self.attribution_label:
+                self.layout.addWidget(self.attribution_label)
+                self.attribution_label.show()
+            
+            # Reset video size
+            if self.youtube_widget:
+                self.youtube_widget.setFixedHeight(353)  # Original height
+
+        # Update layout
+        self.layout.update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Update video size when window is resized
+        if self.youtube_widget and self.window().isFullScreen():
+            self.youtube_widget.setFixedHeight(self.height() - 60)

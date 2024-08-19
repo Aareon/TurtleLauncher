@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, QMessageBox, QFileDialog, QDialog, QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QPixmap, QPalette, QBrush, QImage
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, QMessageBox, QDialog, QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtCore import QTimer, Qt, Slot
+from PySide6.QtGui import QPalette, QBrush, QImage, QFontDatabase, QIcon
 from turtlelauncher.components.tweets_feed import TweetsFeed
 from turtlelauncher.components.featured_content import FeaturedContent
 from turtlelauncher.components.launcher import LauncherWidget
@@ -8,17 +8,17 @@ from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.components.header import HeaderWidget
 from turtlelauncher.utils.config import Config
 from turtlelauncher.dialogs.first_launch import FirstLaunchDialog
+from turtlelauncher.dialogs.install_directory import InstallationDirectoryDialog
 from turtlelauncher.utils.downloader import DownloadExtractUtility
+from turtlelauncher.utils.get_file_version import get_file_version
 from pathlib import Path
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 DATA = ASSETS / "data"
 IMAGES = ASSETS / "images"
+FONTS = ASSETS / "fonts"
 
 USER_DOCUMENTS = Path.home() / "Documents"
 TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
@@ -34,9 +34,14 @@ class TurtleWoWLauncher(QMainWindow):
         self.setWindowTitle("Turtle WoW Launcher")
         self.setMinimumSize(1200, 800)
         
-        # Set the window icon
-        icon = QPixmap(IMAGES / "turtle_wow_icon.png")
+        # Set the window and taskbar icon
+        icon_path = IMAGES / "turtle_wow_icon.png"
+        icon = QIcon(str(icon_path))
         self.setWindowIcon(icon)
+
+        # Set the taskbar icon (this is usually not necessary, but we're doing it explicitly)
+        if QApplication.instance():
+            QApplication.instance().setWindowIcon(icon)
 
         # Load the background image
         self.background_image = QImage(IMAGES / "background.png")
@@ -49,8 +54,20 @@ class TurtleWoWLauncher(QMainWindow):
         # Enable background auto-filling
         self.setAttribute(Qt.WA_StyledBackground, True)
 
+        # Load Fontinn font
+        font_filename = "FontinSans_Cyrillic_R_46b.ttf"
+        font_id = QFontDatabase.addApplicationFont(str((FONTS / font_filename).absolute()))
+        if font_id != -1:
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+        else:
+            font_family = "Arial"
+        logger.debug(f"Using font family {font_family}")
+
         # Load config
         self.config = Config(TOOL_FOLDER / "launcher.json")
+        if not self.config.exists() or not self.config.load():
+            logger.warning("Config does not exist or failed to load")
+            self.config.game_install_dir = None
 
         # Initialize the DownloadExtractUtility
         self.download_utility = DownloadExtractUtility()
@@ -64,59 +81,68 @@ class TurtleWoWLauncher(QMainWindow):
         # Use QTimer to check for first launch after the main window is shown
         QTimer.singleShot(0, self.check_first_launch)
         
-        self.game_installed = False
-        if self.config.game_install_dir:
-            self.game_installed = self.check_game_installation()
-        
-        # If the game is not installed, show the first launch dialog
-        if not self.game_installed:
-            self.setup_first_launch()
-    
     def check_game_installation(self):
-        # Check if the game is installed
+        logger.info("Checking game installation")
+        if self.config.game_install_dir is None:
+            logger.debug("No game installation directory set in config")
+            return False
+        
         game_folder = Path(self.config.game_install_dir)
-        # Check if the game binary exists
+        logger.info(f"Checking for pre-existing installation in: {game_folder}")
+        
         game_binary = game_folder / "WoW.exe"
-        if game_binary.exists():
-            logger.debug("Game binary found")
+        data_folder = game_folder / "Data"
+        
+        logger.debug(f"Checking for WoW.exe at: {game_binary}")
+        logger.debug(f"Checking for Data folder at: {data_folder}")
+        
+        if game_binary.exists() and data_folder.is_dir():
+            logger.info("Valid game installation found")
+            version = self.get_game_version()
+            if version:
+                logger.info(f"Game version detected: {version}")
+                self.launcher_widget.display_version_info(version)
+            else:
+                logger.warning("Game version could not be detected")
             return True
         else:
-            logger.debug("Game binary not found")
+            if not game_binary.exists():
+                logger.debug("WoW.exe not found")
+            if not data_folder.is_dir():
+                logger.debug("Data folder not found or not a directory")
+            logger.info("Invalid or incomplete game installation")
             return False
     
     def check_first_launch(self):
         if not self.config.exists() or not self.config.valid():
+            logger.info("Config does not exist or is invalid. Setting up first launch.")
+            self.setup_first_launch()
+        elif not self.check_game_installation():
+            logger.info("Game installation check failed. Setting up first launch.")
             self.setup_first_launch()
         else:
-            self.config.load()
+            logger.info("Valid config and game installation found.")
 
     def setup_first_launch(self):
         logger.debug("Setting up first launch")
         self.disable_main_window()
+        
         dialog = FirstLaunchDialog(self)
-        logger.debug("FirstLaunchDialog created")
-        
-        # Set the dialog as modal
         dialog.setModal(True)
-        
-        # Show the dialog and wait for it to be visible
         dialog.show()
         QApplication.processEvents()
         
-        logger.debug(f"Dialog visible: {dialog.isVisible()}")
-        logger.debug(f"Dialog geometry: {dialog.geometry()}")
-        
         result = dialog.exec()
-        logger.debug(f"Dialog result: {result}")
+        logger.debug(f"FirstLaunchDialog result: {result}")
         
         self.enable_main_window()
         
         if result == QDialog.DialogCode.Accepted:
             logger.debug("User chose to select existing installation")
-            self.select_existing_installation()
+            self.select_installation_directory("Select Existing Installation Directory")
         elif result == QDialog.DialogCode.Rejected:
             logger.debug("User chose to download the game")
-            self.download_game()
+            self.select_installation_directory("Select Download Directory")
         else:
             logger.debug("First launch setup canceled")
             self.close()
@@ -127,15 +153,30 @@ class TurtleWoWLauncher(QMainWindow):
     def enable_main_window(self):
         self.setEnabled(True)
 
-    def select_existing_installation(self):
-        install_dir = QFileDialog.getExistingDirectory(self, "Select Turtle WoW Installation Directory")
-        if install_dir:
-            self.config.game_install_dir = str(Path(install_dir))
+    def select_installation_directory(self, dialog_title):
+        is_existing_install = dialog_title == "Select Existing Installation Directory"
+        install_dir_dialog = InstallationDirectoryDialog(self, is_existing_install)
+        install_dir_dialog.setWindowTitle(dialog_title)
+        if install_dir_dialog.exec() == QDialog.DialogCode.Accepted:
+            selected_directory = install_dir_dialog.selected_directory
+            logger.debug(f"User selected {'existing' if is_existing_install else 'new'} installation directory: {selected_directory}")
+            
+            self.config.game_install_dir = Path(selected_directory)
             self.config.save()
-            logger.debug(f"Existing installation selected: {self.config.game_install_dir}")
+            
+            if is_existing_install:
+                if self.check_game_installation():
+                    logger.debug("Valid existing installation selected")
+                    # Proceed with launching the game or additional setup
+                else:
+                    logger.debug("Invalid installation directory selected")
+                    QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
+                    self.setup_first_launch()  # Restart the setup process
+            else:
+                self.download_game()
         else:
-            logger.debug("No installation directory selected")
-            self.close()  # Close the launcher if no directory is selected
+            logger.debug("Installation directory selection canceled")
+            self.close()
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -201,6 +242,45 @@ class TurtleWoWLauncher(QMainWindow):
     def tray_icon_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show()
+    
+    def update_game_install_dir(self, extracted_folder):
+        install_dir = Path(self.config.game_install_dir)
+        self.config.game_install_dir = str(install_dir / extracted_folder)
+        self.config.save()
+        logger.debug(f"Updated game_install_dir to: {self.config.game_install_dir}")
+    
+    def get_game_version(self):
+        exe_path = Path(self.config.game_install_dir) / "WoW.exe"
+        logger.debug(f"Attempting to get version for: {exe_path}")
+        if exe_path.exists():
+            version = get_file_version(str(exe_path))
+            if version:
+                logger.debug(f"WoW.exe version: {version}")
+                return version
+            else:
+                logger.warning("Failed to retrieve WoW.exe version")
+        else:
+            logger.warning(f"WoW.exe not found at {exe_path}")
+        return None
+    
+    def display_version_info(self, version):
+        version_str = f"Turtle WoW Version: {version}"
+        self.version_label.setText(version_str)
+        self.version_label.show()
+        self.launcher_widget.hide_progress_widgets()
+        logger.info(f"Displaying version info: {version_str}")
+    
+    def show_progress_widgets(self):
+        self.progress_bar.show()
+        self.progress_label.show()
+        self.speed_label.show()
+        self.percent_label.show()
+    
+    def hide_progress_widgets(self):
+        self.progress_bar.hide()
+        self.progress_label.hide()
+        self.speed_label.hide()
+        self.percent_label.hide()
 
     def show_image_overlay(self, pixmap):
         if self.image_overlay:
@@ -233,18 +313,40 @@ class TurtleWoWLauncher(QMainWindow):
             self.image_overlay.setGeometry(self.rect())
     
     def download_game(self):
-        self.config.game_install_dir = str(TOOL_FOLDER / "TurtleWoW")
-        self.config.save()
-        logger.debug(f"Game will be downloaded to: {self.config.game_install_dir}")
-        self.launcher_widget.start_download(DOWNLOAD_URL, self.config.game_install_dir)
+        install_dir = self.config.game_install_dir
+        if install_dir:
+            logger.debug(f"Game will be downloaded to: {install_dir}")
+            self.launcher_widget.start_download(DOWNLOAD_URL, install_dir)
+        else:
+            logger.debug("No installation directory selected")
+            self.close()
 
     def on_download_completed(self):
         logger.debug("Download completed")
 
-    def on_extraction_completed(self):
-        logger.debug("Extraction completed")
-        QMessageBox.information(self, "Installation Complete", "Turtle WoW has been successfully installed!")
+    @Slot(str)
+    def on_extraction_completed(self, extracted_folder):
+        logger.info(f"Extraction completed. Extracted folder: {extracted_folder}")
+        if extracted_folder:
+            self.update_game_install_dir(extracted_folder)
+            if self.check_game_installation():
+                version = self.get_game_version()
+                if version:
+                    logger.info(f"Game version detected: {version}")
+                    self.launcher_widget.display_version_info(version)
+                else:
+                    logger.warning("Game version could not be detected")
+                QMessageBox.information(self, "Installation Complete", "Turtle WoW has been successfully installed!")
+            else:
+                logger.warning("Invalid or incomplete game installation after extraction")
+                QMessageBox.warning(self, "Installation Issue", "The game files were extracted, but the installation seems incomplete. Please check the installation directory.")
+                self.setup_first_launch()  # Restart the setup process
+        else:
+            logger.error("Extraction completed but no folder name was provided")
+            QMessageBox.warning(self, "Installation Issue", "The game files were extracted, but there was an issue identifying the installation folder. Please check the installation directory.")
+            self.setup_first_launch()  # Restart the setup process
 
+    @Slot(str)
     def on_error(self, error_message):
         logger.error(f"Error occurred: {error_message}")
         QMessageBox.critical(self, "Error", f"An error occurred: {error_message}")

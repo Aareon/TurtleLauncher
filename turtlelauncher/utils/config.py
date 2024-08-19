@@ -1,10 +1,6 @@
 import json
 from pathlib import Path
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
+from loguru import logger
 
 class Config:
     def __init__(self, config_path: Path | str):
@@ -12,6 +8,7 @@ class Config:
         
         self.game_install_dir = None
         self.selected_binary = None
+        self.particles_disabled = False
 
     def exists(self):
         exists = self.config_path.exists()
@@ -31,14 +28,30 @@ class Config:
             return False
 
     def save(self):
-        config = {'game_install_dir': self.game_install_dir, 'selected_binary': self.selected_binary}
+        config = {
+            'game_install_dir': str(self.game_install_dir),
+            'selected_binary': self.selected_binary,
+            'particles_disabled': self.particles_disabled
+        }
         with open(self.config_path, 'w') as f:
             json.dump(config, f)
+        logger.debug(f"Config saved: {config}")
 
     def load(self):
-        with open(self.config_path, 'r') as f:
-            config = json.load(f)
-        self.game_install_dir = config.get('game_install_dir')
-        self.selected_binary = config.get('selected_binary')
-        logger.debug(f"Game install directory: {self.game_install_dir}")
-        logger.debug(f"Selected binary: {self.selected_binary}")
+        if not self.exists():
+            logger.warning("Config file does not exist")
+            return False
+        
+        try:
+            with open(self.config_path, 'r') as f:
+                config = json.load(f)
+            self.game_install_dir = Path(config.get('game_install_dir'))
+            self.selected_binary = config.get('selected_binary')
+            self.particles_disabled = config.get('particles_disabled', False)
+            logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
+            logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
+            logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")
+            return True
+        except Exception as e:
+            logger.exception(f"Error loading config: {e}")
+            return False

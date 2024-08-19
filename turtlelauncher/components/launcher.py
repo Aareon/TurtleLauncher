@@ -1,14 +1,12 @@
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStyleOption, QStyle, QLabel
 from PySide6.QtGui import QFont, QPainter, QFontDatabase, QColor
-from PySide6.QtCore import Slot, Signal, QTimer
+from PySide6.QtCore import Slot, Signal, QTimer, Qt
 from pathlib import Path
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.image_button import ImageButton
 from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -30,6 +28,7 @@ class LauncherWidget(QWidget):
         self.download_utility.extraction_completed.connect(self.on_extraction_completed)
         self.download_utility.error_occurred.connect(self.on_error)
         self.download_utility.status_changed.connect(self.on_status_changed)
+        self.download_utility.total_size_updated.connect(self.set_total_file_size)
 
     def initUI(self):
         main_layout = QVBoxLayout(self)
@@ -59,20 +58,27 @@ class LauncherWidget(QWidget):
         self.speed_label.setStyleSheet("color: #ffd700;")
         progress_info_layout.addWidget(self.speed_label)
 
-        self.percent_label = QLabel("0%")
-        self.percent_label.setFont(QFont(font_family, 10))
-        self.percent_label.setStyleSheet("color: #ffd700;")
-        progress_info_layout.addWidget(self.percent_label)
+        self.total_size_label = QLabel("Total size: 0 MB")
+        self.total_size_label.setFont(QFont(font_family, 10))
+        self.total_size_label.setStyleSheet("color: #ffd700;")
+        progress_info_layout.addWidget(self.total_size_label)
 
         main_layout.addLayout(progress_info_layout)
 
         self.progress_bar = GradientProgressBar()
         self.progress_bar.setAnimationSpeed(0.5)
-        self.progress_bar.setGradientWidth(300)
+        self.progress_bar.setGradientWidth(1000)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.progress_bar.setFixedHeight(20)
         main_layout.addWidget(self.progress_bar)
+
+        # Version Label
+        self.version_label = QLabel()
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.version_label.setStyleSheet("color: #ffd700; font-size: 14px;")
+        self.version_label.hide()  # Initially hide the version label
+        main_layout.addWidget(self.version_label)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -105,12 +111,15 @@ class LauncherWidget(QWidget):
         self.style().drawPrimitive(QStyle.PE_Widget, option, painter, self)
         super().paintEvent(event)
 
-    @Slot(int, str)
+    @Slot(str, str)
     def update_progress(self, percent, speed):
-        self.progress_label.setText(f"Downloading... {percent}%")
+        percent_int = int(float(percent))  # Convert percent to integer
+        if self.progress_label.text().startswith("Extracting"):
+            self.progress_label.setText(f"Extracting... {percent_int}%")
+        else:
+            self.progress_label.setText(f"Downloading... {percent_int}%")
         self.speed_label.setText(speed)
-        self.percent_label.setText(f"{percent}%")
-        self.progress_bar.setValue(percent)
+        self.progress_bar.setValue(percent_int)
 
     @Slot()
     def on_download_completed(self):
@@ -145,7 +154,46 @@ class LauncherWidget(QWidget):
     def start_download(self, url, extract_path):
         self.progress_label.setText("Preparing download...")
         self.speed_label.setText("")
-        self.percent_label.setText("0%")
+        self.total_size_label.setText("Total size: Calculating...")
         self.progress_bar.setValue(0)
         logger.debug(f"Starting download from {url} to {extract_path}")
         QTimer.singleShot(0, lambda: self.download_utility.download_and_extract(url, extract_path))
+
+    def display_version_info(self, version):
+        version_str = f"Turtle WoW Version: {version}"
+        self.version_label.setText(version_str)
+        self.version_label.show()
+        self.hide_progress_widgets()
+        logger.info(f"Displaying version info: {version_str}")
+
+    def hide_progress_widgets(self):
+        self.progress_bar.hide()
+        self.progress_label.hide()
+        self.speed_label.hide()
+        self.percent_label.hide()
+
+    def show_progress_widgets(self):
+        self.progress_bar.show()
+        self.progress_label.show()
+        self.speed_label.show()
+        self.percent_label.show()
+    
+    @Slot(str)
+    def set_total_file_size(self, total_size_str):
+        try:
+            total_size_bytes = int(total_size_str)
+            if total_size_bytes > 0:
+                if total_size_bytes >= 1024 * 1024 * 1024:  # If size is 1 GB or larger
+                    total_size_gb = total_size_bytes / (1024 * 1024 * 1024)
+                    self.total_size_label.setText(f"Total size: {total_size_gb:.2f} GB")
+                else:
+                    total_size_mb = total_size_bytes / (1024 * 1024)
+                    self.total_size_label.setText(f"Total size: {total_size_mb:.2f} MB")
+            else:
+                self.total_size_label.setText("Total size: Unknown")
+        except ValueError:
+            logger.error(f"Invalid total size received: {total_size_str}")
+            self.total_size_label.setText("Total size: Unknown")
+        except Exception as e:
+            logger.error(f"Error setting total file size: {e}")
+            self.total_size_label.setText("Total size: Error")
