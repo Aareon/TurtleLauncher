@@ -125,7 +125,6 @@ class LauncherWidget(QWidget):
     def on_download_completed(self):
         self.progress_label.setText("Extracting...")
         self.speed_label.setText("")
-        self.percent_label.setText("0%")
         self.progress_bar.setValue(0)
         self.download_completed.emit()
 
@@ -133,7 +132,6 @@ class LauncherWidget(QWidget):
     def on_extraction_completed(self):
         self.progress_label.setText("Installation completed!")
         self.speed_label.setText("")
-        self.percent_label.setText("100%")
         self.progress_bar.setValue(100)
         self.progress_bar.stop_particle_effect()
         self.extraction_completed.emit()
