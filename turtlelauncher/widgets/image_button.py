@@ -21,7 +21,7 @@ class ImageButton(QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 border: none;
-                color: #ffd700;
+                color: #ffd700; /* #ffd700 or #B2E4E9 */
                 text-align: center;
             }
             QPushButton:hover {

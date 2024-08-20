@@ -108,28 +108,22 @@ class TurtleWoWLauncher(QMainWindow):
             return False
     
     def check_first_launch(self):
-        if not self.config.exists() or not self.config.valid():
-            logger.info("Config does not exist or is invalid. Setting up first launch.")
-            self.setup_first_launch()
-        elif not self.check_game_installation():
-            logger.info("Game installation check failed. Setting up first launch.")
-            self.setup_first_launch()
+        if not self.config.exists() or not self.config.valid() or not self.check_game_installation():
+            logger.info("No valid game installation found. Setting Download button.")
+            self.launcher_widget.action_button.setText("Download")
         else:
-            logger.info("Valid config and game installation found.")
+            logger.info("Valid game installation found.")
+            self.launcher_widget.set_play_mode()
+            self.update_launcher_with_game_version()
 
     def setup_first_launch(self):
         logger.debug("Setting up first launch")
-        self.disable_main_window()
         
         dialog = FirstLaunchDialog(self)
-        dialog.setModal(True)
-        dialog.show()
-        QApplication.processEvents()
-        
+        dialog.setWindowModality(Qt.WindowModal)
         result = dialog.exec()
+
         logger.debug(f"FirstLaunchDialog result: {result}")
-        
-        self.enable_main_window()
         
         if result == QDialog.DialogCode.Accepted:
             logger.debug("User chose to select existing installation")
@@ -139,7 +133,45 @@ class TurtleWoWLauncher(QMainWindow):
             self.select_installation_directory("Select Download Directory")
         else:
             logger.debug("First launch setup canceled")
-            self.close()
+            self.cancel_setup()
+
+        # Ensure the dialog is deleted and the main window is updated
+        dialog.deleteLater()
+        QApplication.processEvents()
+        self.update()
+    
+    def on_first_launch_dialog_finished(self, result):
+        logger.debug(f"FirstLaunchDialog result: {result}")
+        
+        if result == QDialog.DialogCode.Accepted:
+            logger.debug("User chose to select existing installation")
+            self.select_installation_directory("Select Existing Installation Directory")
+        elif result == QDialog.DialogCode.Rejected:
+            logger.debug("User chose to download the game")
+            self.select_installation_directory("Select Download Directory")
+        else:
+            logger.debug("First launch setup canceled")
+            self.cancel_setup()
+        
+        # Ensure the dialog is deleted and the main window is updated
+        self.first_launch_dialog.deleteLater()
+        self.update()
+
+    def cancel_setup(self):
+        self.launcher_widget.hide_progress_widgets()
+        self.launcher_widget.progress_label.setText("Setup canceled")
+        self.launcher_widget.action_button.setText("Download")
+        QApplication.processEvents()
+        self.update()
+
+    def update_launcher_with_game_version(self):
+        version = self.get_game_version()
+        if version:
+            logger.info(f"Game version detected: {version}")
+            self.launcher_widget.display_version_info(version)
+        else:
+            logger.warning("Game version could not be detected")
+            self.launcher_widget.display_version_info("Unknown")
     
     def disable_main_window(self):
         self.setEnabled(False)
@@ -151,7 +183,10 @@ class TurtleWoWLauncher(QMainWindow):
         is_existing_install = dialog_title == "Select Existing Installation Directory"
         install_dir_dialog = InstallationDirectoryDialog(self, is_existing_install)
         install_dir_dialog.setWindowTitle(dialog_title)
-        if install_dir_dialog.exec() == QDialog.DialogCode.Accepted:
+        install_dir_dialog.setWindowModality(Qt.WindowModal)
+        result = install_dir_dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
             selected_directory = install_dir_dialog.selected_directory
             logger.debug(f"User selected {'existing' if is_existing_install else 'new'} installation directory: {selected_directory}")
             
@@ -161,16 +196,56 @@ class TurtleWoWLauncher(QMainWindow):
             if is_existing_install:
                 if self.check_game_installation():
                     logger.debug("Valid existing installation selected")
-                    # Proceed with launching the game or additional setup
+                    self.launcher_widget.set_play_mode()
+                    self.update_launcher_with_game_version()
                 else:
                     logger.debug("Invalid installation directory selected")
                     QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
-                    self.setup_first_launch()  # Restart the setup process
+                    self.setup_first_launch()
             else:
                 self.download_game()
         else:
             logger.debug("Installation directory selection canceled")
-            self.close()
+            self.cancel_setup()
+
+        # Ensure the dialog is deleted and the main window is updated
+        install_dir_dialog.deleteLater()
+        QApplication.processEvents()
+        self.update()
+        self.force_repaint()
+    
+    def on_installation_directory_selected(self, result):
+        if result == QDialog.DialogCode.Accepted:
+            selected_directory = self.install_dir_dialog.selected_directory
+            logger.debug(f"User selected {'existing' if self.install_dir_dialog.is_existing_install else 'new'} installation directory: {selected_directory}")
+            
+            self.config.game_install_dir = Path(selected_directory)
+            self.config.save()
+            
+            if self.install_dir_dialog.is_existing_install:
+                if self.check_game_installation():
+                    logger.debug("Valid existing installation selected")
+                    self.launcher_widget.set_play_mode()
+                    self.update_launcher_with_game_version()
+                else:
+                    logger.debug("Invalid installation directory selected")
+                    QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
+                    self.setup_first_launch()
+            else:
+                self.download_game()
+        else:
+            logger.debug("Installation directory selection canceled")
+            self.cancel_setup()
+        
+        # Ensure the dialog is deleted and the main window is updated
+        self.install_dir_dialog.deleteLater()
+        self.update()
+    
+    def launch_game(self):
+        # Implement game launching logic here
+        logger.info("Launching the game")
+        # For now, just show a message box
+        QMessageBox.information(self, "Launch Game", "Game launching functionality not implemented yet.")
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -209,6 +284,8 @@ class TurtleWoWLauncher(QMainWindow):
         self.launcher_widget = LauncherWidget()
         self.launcher_widget.download_completed.connect(self.on_download_completed)
         self.launcher_widget.extraction_completed.connect(self.on_extraction_completed)
+        # Connect the download button signal to the first launch setup
+        self.launcher_widget.download_button_clicked.connect(self.setup_first_launch)
         logger.debug("Connecting extraction_completed signal from `launcher_widget` to `on_extraction_completed` slot")
         self.launcher_widget.error_occurred.connect(self.on_error)
         main_layout.addWidget(self.launcher_widget)
@@ -307,6 +384,9 @@ class TurtleWoWLauncher(QMainWindow):
         # Update the image overlay if it exists
         if self.image_overlay:
             self.image_overlay.setGeometry(self.rect())
+
+        # Force a repaint of the entire window
+        self.force_repaint()
     
     def download_game(self):
         install_dir = self.config.game_install_dir
@@ -385,3 +465,8 @@ class TurtleWoWLauncher(QMainWindow):
                 child.close()
         
         QTimer.singleShot(0, QApplication.quit)
+    
+    def force_repaint(self):
+        self.repaint()
+        for child in self.findChildren(QWidget):
+            child.repaint()

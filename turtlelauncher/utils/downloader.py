@@ -12,12 +12,14 @@ logger.remove()
 logger.add("downloader.log", rotation="10 MB", level="INFO")
 logger.add(lambda msg: print(msg, end=""), level="INFO")  # Also print to console
 
+
 class WorkerSignals(QObject):
-    progress_updated = Signal(int, str)
+    progress_updated = Signal(int, str, str)  # (percent, speed, state)
     download_completed = Signal()
     extraction_completed = Signal(str)
     error_occurred = Signal(str)
     total_size_updated = Signal(str)
+
 
 class DownloadExtractWorker(QRunnable):
     CHUNK_SIZE = 1024 * 1024  # 1 MB
@@ -89,7 +91,12 @@ class DownloadExtractWorker(QRunnable):
 
                             current_time = time.time()
                             if current_time - last_update_time >= self.SPEED_UPDATE_INTERVAL:
-                                self.update_progress(downloaded_size, total_size, current_time - start_time)
+                                elapsed_time = current_time - start_time
+                                speed = downloaded_size / elapsed_time
+                                percent = int((downloaded_size / total_size) * 100) if total_size > 0 else 0
+                                speed_str = self.format_speed(speed)
+                                
+                                self.signals.progress_updated.emit(percent, speed_str, "downloading")
                                 last_update_time = current_time
 
                             if current_time - last_log_time >= self.LOG_INTERVAL:
@@ -131,7 +138,7 @@ class DownloadExtractWorker(QRunnable):
                 zip_ref.extract(file, extract_path)
                 extracted_size += file.file_size
                 percent = int((extracted_size / total_size) * 100)
-                self.signals.progress_updated.emit(percent, "Extracting...")
+                self.signals.progress_updated.emit(percent, "", "extracting")  # Empty string for speed during extraction
 
                 if extracted_size % (10 * self.CHUNK_SIZE) == 0:
                     logger.info(f"Extraction progress: {percent}%")
@@ -158,8 +165,9 @@ class DownloadExtractWorker(QRunnable):
         logger.info("Cancellation requested")
         self.is_cancelled = True
 
+
 class DownloadExtractUtility(QObject):
-    progress_updated = Signal(str, str)
+    progress_updated = Signal(str, str, str)  # (percent, speed, state)
     download_completed = Signal()
     extraction_completed = Signal(str)
     error_occurred = Signal(str)
@@ -203,9 +211,9 @@ class DownloadExtractUtility(QObject):
         self.thread_pool.clear()
         self.is_downloading = False
 
-    def on_progress_updated(self, percent, speed):
-        logger.debug(f"Progress update: {percent}%, Speed: {speed}")
-        self.progress_updated.emit(str(percent), speed)
+    def on_progress_updated(self, percent, speed, state):
+        logger.debug(f"Progress update: {percent}%, Speed: {speed}, State: {state}")
+        self.progress_updated.emit(str(percent), speed, state)
 
     def on_download_completed(self):
         logger.info("Download phase completed")
