@@ -2,13 +2,13 @@
 
 ; Define your application name, version, and publisher
 !define APPNAME "Turtle WoW Launcher"
-!define APPVERSION "1.0.0"
+$11.0.0"
 !define PUBLISHER "Aareon Sullivan"
 
 ; Main install settings
 Name "${APPNAME}"
 InstallDir "$PROGRAMFILES\${APPNAME}"
-OutFile "${APPNAME}-${APPVERSION}-setup.exe"
+OutFile ".\build\Turtle WoW Launcher.exe"
 
 ; Modern interface settings
 !include "MUI2.nsh"
@@ -31,7 +31,7 @@ Section "Install"
     SetOutPath $INSTDIR
     
     ; Add files to install
-    File ".\build\${APPNAME}.exe"
+    File ".\build\Turtle WoW Launcher.exe"
     ; Add any additional files or folders your application needs
     ; File /r ".\assets"
 
