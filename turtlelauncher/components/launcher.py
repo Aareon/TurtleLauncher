@@ -9,6 +9,7 @@ from turtlelauncher.utils.downloader import DownloadExtractUtility
 from loguru import logger
 import subprocess
 import shlex
+import os
 
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
@@ -160,7 +161,10 @@ class LauncherWidget(QWidget):
             if not self.config.selected_binary:
                 self.open_binary_selection_dialog()
             else:
-                self.execute_selected_binary()
+                if self.validate_selected_binary():
+                    self.execute_selected_binary()
+                else:
+                    self.open_binary_selection_dialog()
     
     @Slot(str, str, str)
     def update_progress(self, percent, speed, state):
@@ -371,17 +375,43 @@ class LauncherWidget(QWidget):
     def show_error_dialog(self, title, message):
         if self.game_launch_dialog:
             self.game_launch_dialog.close()
-        error_dialog = ErrorDialog(self, title, message)
+        detailed_message = f"{message}\n\nSelected binary: {self.config.selected_binary}\nPlease ensure the file exists and you have the necessary permissions to run it."
+        error_dialog = ErrorDialog(self, title, detailed_message)
         error_dialog.exec()
+    
+    def validate_selected_binary(self):
+        if self.config.selected_binary:
+            binary_path = Path(self.config.selected_binary)
+            if not binary_path.exists():
+                logger.warning(f"Selected binary no longer exists: {binary_path}")
+                self.config.selected_binary = None
+                self.show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+                return False
+            
+            if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
+                logger.warning(f"Selected binary is not executable: {binary_path}")
+                self.show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
+                return False
+            
+            logger.info(f"Selected binary is valid: {binary_path}")
+            return True
+        else:
+            logger.info("No binary currently selected")
+            return False
     
     def execute_selected_binary(self):
         if self.config.selected_binary:
             try:
-                logger.info(f"Attempting to execute: {self.config.selected_binary}")
+                binary_path = Path(self.config.selected_binary)
+                logger.info(f"Attempting to execute: {binary_path}")
                 
                 # Check if the file exists
-                if not Path(self.config.selected_binary).exists():
-                    raise FileNotFoundError(f"The selected binary does not exist: {self.config.selected_binary}")
+                if not binary_path.exists():
+                    raise FileNotFoundError(f"The selected binary does not exist: {binary_path}")
+                
+                # Check if the file is executable (for non-Windows systems)
+                if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
+                    raise PermissionError(f"The selected binary is not executable: {binary_path}")
                 
                 # Create and show the GameLaunchDialog
                 self.game_launch_dialog = GameLaunchDialog(self)
@@ -390,7 +420,7 @@ class LauncherWidget(QWidget):
                 # Start the subprocess
                 try:
                     # Use shlex.split to properly handle paths with spaces
-                    command = shlex.split(self.config.selected_binary)
+                    command = shlex.split(str(binary_path))
                     logger.debug(f"Prepared command: {command}")
                     self.game_process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 except subprocess.SubprocessError as e:
