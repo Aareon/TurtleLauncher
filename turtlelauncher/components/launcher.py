@@ -8,9 +8,12 @@ from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
 from loguru import logger
 import subprocess
+import shlex
 
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
+from turtlelauncher.dialogs.game_launch import GameLaunchDialog
+from turtlelauncher.dialogs.error import ErrorDialog
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -32,6 +35,11 @@ class LauncherWidget(QWidget):
         self.check_game_installation_callback = check_game_installation_callback
         self.config = config
         logger.debug(f"LauncherWidget initialized with particles_disabled: {self.config.particles_disabled}")
+        
+        self.game_process = None
+        self.game_launch_dialog = None
+        self.process_monitor_timer = QTimer(self)
+        self.process_monitor_timer.timeout.connect(self.check_game_process)
         
         self.is_downloading = False
         self.initUI()
@@ -334,19 +342,67 @@ class LauncherWidget(QWidget):
             logger.debug("Stopping particle effect due to setting change")
             self.progress_bar.stop_particle_effect()
    
+    def check_game_process(self):
+        if self.game_process:
+            return_code = self.game_process.poll()
+            if return_code is not None:
+                # Process has ended
+                self.process_monitor_timer.stop()
+                if self.game_launch_dialog:
+                    self.game_launch_dialog.close()
+                
+                stdout, stderr = self.game_process.communicate()
+                if return_code != 0 or stderr:
+                    error_message = f"Game process ended unexpectedly. Return code: {return_code}\n"
+                    if stderr:
+                        error_message += f"Error output: {stderr.decode('utf-8', errors='replace')}"
+                    logger.error(error_message)
+                    self.show_error_dialog("Game Execution Error", error_message)
+                else:
+                    logger.info("Game process has ended normally")
+
+                self.game_process = None
+   
+    @Slot()
+    def on_launch_completed(self):
+        logger.info("Game launch completed")
+        # You can add any post-launch logic here if needed
+    
+    def show_error_dialog(self, title, message):
+        if self.game_launch_dialog:
+            self.game_launch_dialog.close()
+        error_dialog = ErrorDialog(self, title, message)
+        error_dialog.exec()
+    
     def execute_selected_binary(self):
         if self.config.selected_binary:
             try:
                 logger.info(f"Attempting to execute: {self.config.selected_binary}")
-                subprocess.Popen(self.config.selected_binary, shell=True)
+                
+                # Create and show the GameLaunchDialog
+                self.game_launch_dialog = GameLaunchDialog(self)
+                self.game_launch_dialog.show()
+
+                # Start the subprocess
+                try:
+                    # Use shlex.split to properly handle paths with spaces
+                    command = shlex.split(self.config.selected_binary)
+                    self.game_process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                except subprocess.SubprocessError as e:
+                    raise RuntimeError(f"Failed to start the game process: {str(e)}")
+
+                # Start monitoring the process
+                self.process_monitor_timer.start(1000)  # Check every second
+                
                 logger.info("Binary execution initiated successfully")
             except Exception as e:
                 error_message = f"Failed to execute the selected binary: {str(e)}"
                 logger.error(error_message)
-                QMessageBox.critical(self, "Execution Error", error_message)
+                if self.game_launch_dialog:
+                    self.game_launch_dialog.close()
+                self.show_error_dialog("Execution Error", error_message)
         else:
             logger.warning("No binary selected for execution")
-            QMessageBox.warning(self, "No Binary Selected", "Please select a binary to execute.")
     
     @Slot(str)
     def on_binary_selected(self, selected_binary):
