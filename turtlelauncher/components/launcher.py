@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStyleOption, QStyle, QLabel, QDialog
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStyleOption, QStyle, QLabel, QDialog, QMessageBox
 from PySide6.QtGui import QFont, QPainter, QFontDatabase, QColor
 from PySide6.QtCore import Slot, Signal, QTimer, Qt
 from pathlib import Path
@@ -7,8 +7,10 @@ from turtlelauncher.widgets.image_button import ImageButton
 from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
 from loguru import logger
+import subprocess
 
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
+from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -30,7 +32,8 @@ class LauncherWidget(QWidget):
         self.check_game_installation_callback = check_game_installation_callback
         self.config = config
         logger.debug(f"LauncherWidget initialized with particles_disabled: {self.config.particles_disabled}")
-
+        
+        self.is_downloading = False
         self.initUI()
 
         # Update particle effect based on config
@@ -43,7 +46,6 @@ class LauncherWidget(QWidget):
         self.download_utility.error_occurred.connect(self.on_error)
         self.download_utility.status_changed.connect(self.on_status_changed)
         self.download_utility.total_size_updated.connect(self.set_total_file_size)
-        self.is_downloading = False
 
     def initUI(self):
         main_layout = QVBoxLayout(self)
@@ -142,13 +144,15 @@ class LauncherWidget(QWidget):
 
     def on_action_button_clicked(self):
         if self.action_button.text() == "Download":
-            #self.show_progress_widgets()
             self.progress_label.setText("Waiting...")
             self.download_button_clicked.emit()
         elif self.action_button.text() == "Stop":
             self.stop_download()
         elif self.action_button.text() == "Play":
-            self.play_button_clicked.emit()
+            if not self.config.selected_binary:
+                self.open_binary_selection_dialog()
+            else:
+                self.execute_selected_binary()
     
     @Slot(str, str, str)
     def update_progress(self, percent, speed, state):
@@ -175,7 +179,6 @@ class LauncherWidget(QWidget):
         self.progress_bar.setValue(100)
         self.total_size_label.hide()
         self.progress_bar.show()  # Keep progress bar visible
-        self.action_button.setText("Play")
         self.is_downloading = False
         logger.info("Download completed. Preparing for extraction...")
     
@@ -203,7 +206,7 @@ class LauncherWidget(QWidget):
         self.progress_bar.setValue(100)
         self.progress_bar.stop_particle_effect()
         self.progress_bar.hide()  # Hide progress bar after extraction is complete
-        self.action_button.setText("Play")
+        self.action_button.setText("Play")  # Change the action button text to "Play"
         self.is_downloading = False
         self.extraction_completed.emit(extracted_folder)
 
@@ -314,13 +317,44 @@ class LauncherWidget(QWidget):
         if self.config.particles_disabled:
             logger.debug("Stopping particle effect")
             self.progress_bar.stop_particle_effect()
+        elif self.is_downloading:
+            logger.debug("Starting particle effect")
+            self.progress_bar.start_particle_effect()
         else:
             logger.debug("Particle effect enabled, but not starting until download begins")
     
-    def on_particles_setting_changed(self, particles_disabled):
-        logger.debug(f"Particles setting changed: disabled = {particles_disabled}")
-        self.config.particles_disabled = particles_disabled
+    def on_particles_setting_changed(self, particles_enabled):
+        logger.debug(f"Particles setting changed: enabled = {particles_enabled}")
+        self.config.particles_disabled = not particles_enabled
         self.update_particle_effect()
-        if particles_disabled and self.is_downloading:
-            logger.debug("Stopping particle effect due to setting change during download")
+        if particles_enabled and self.is_downloading:
+            logger.debug("Starting particle effect due to setting change during download")
+            self.progress_bar.start_particle_effect()
+        elif not particles_enabled:
+            logger.debug("Stopping particle effect due to setting change")
             self.progress_bar.stop_particle_effect()
+   
+    def execute_selected_binary(self):
+        if self.config.selected_binary:
+            try:
+                logger.info(f"Attempting to execute: {self.config.selected_binary}")
+                subprocess.Popen(self.config.selected_binary, shell=True)
+                logger.info("Binary execution initiated successfully")
+            except Exception as e:
+                error_message = f"Failed to execute the selected binary: {str(e)}"
+                logger.error(error_message)
+                QMessageBox.critical(self, "Execution Error", error_message)
+        else:
+            logger.warning("No binary selected for execution")
+            QMessageBox.warning(self, "No Binary Selected", "Please select a binary to execute.")
+    
+    @Slot(str)
+    def on_binary_selected(self, selected_binary):
+        self.config.select_binary = selected_binary
+        logger.info(f"Selected binary: {selected_binary}")
+        self.play_button_clicked.emit()
+    
+    def open_binary_selection_dialog(self):
+        dialog = BinarySelectionDialog(self.config, self)
+        dialog.binary_selected.connect(self.on_binary_selected)
+        dialog.exec()
