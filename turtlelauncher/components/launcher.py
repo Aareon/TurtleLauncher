@@ -379,6 +379,10 @@ class LauncherWidget(QWidget):
             try:
                 logger.info(f"Attempting to execute: {self.config.selected_binary}")
                 
+                # Check if the file exists
+                if not Path(self.config.selected_binary).exists():
+                    raise FileNotFoundError(f"The selected binary does not exist: {self.config.selected_binary}")
+                
                 # Create and show the GameLaunchDialog
                 self.game_launch_dialog = GameLaunchDialog(self)
                 self.game_launch_dialog.show()
@@ -387,17 +391,24 @@ class LauncherWidget(QWidget):
                 try:
                     # Use shlex.split to properly handle paths with spaces
                     command = shlex.split(self.config.selected_binary)
+                    logger.debug(f"Prepared command: {command}")
                     self.game_process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 except subprocess.SubprocessError as e:
                     raise RuntimeError(f"Failed to start the game process: {str(e)}")
+                except OSError as e:
+                    raise RuntimeError(f"OS error occurred while starting the game process: {str(e)}")
+
+                # Check if the process was created successfully
+                if self.game_process.pid is None:
+                    raise RuntimeError("Failed to get process ID after creation")
 
                 # Start monitoring the process
                 self.process_monitor_timer.start(1000)  # Check every second
                 
-                logger.info("Binary execution initiated successfully")
+                logger.info(f"Binary execution initiated successfully. PID: {self.game_process.pid}")
             except Exception as e:
                 error_message = f"Failed to execute the selected binary: {str(e)}"
-                logger.error(error_message)
+                logger.error(error_message, exc_info=True)
                 if self.game_launch_dialog:
                     self.game_launch_dialog.close()
                 self.show_error_dialog("Execution Error", error_message)
