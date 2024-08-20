@@ -22,7 +22,7 @@ OutFile "${APPNAME}-${APPVERSION}-setup.exe"
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ; Set the installer icon (replace with your own icon if you have one)
-;!define MUI_ICON ".\assets\images\icon.ico"
+!define MUI_ICON ".\assets\images\icon.ico"
 
 ; Default section
 Section "Install"
@@ -31,7 +31,7 @@ Section "Install"
     SetOutPath $INSTDIR
     
     ; Add files to install
-    File ".\__main__.dist\{APPNAME}.exe"
+    File ".\build\${APPNAME}.exe"
     ; Add any additional files or folders your application needs
     ; File /r ".\assets"
 
@@ -55,7 +55,7 @@ SectionEnd
 Section "Uninstall"
     
     ; Remove installed files
-    Delete "$INSTDIR\executable.exe"
+    Delete "$INSTDIR\${APPNAME}.exe"
     ; Remove any additional files or folders you've added
     ; RMDir /r "$INSTDIR\assets"
 
