@@ -1,9 +1,12 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, 
                                QListWidget, QListWidgetItem, QHBoxLayout)
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QPainter
 from PySide6.QtCore import Qt, QPoint, Signal
 from pathlib import Path
 from loguru import logger
+from PIL.ImageQt import ImageQt
+
+from turtlelauncher.utils.get_exe_icon import get_exe_icon
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -53,41 +56,7 @@ class BinarySelectionDialog(QDialog):
         self.binary_list.setObjectName("binary-list")
         content_layout.addWidget(self.binary_list)
 
-        game_install_dir = self.config.game_install_dir
-        # Populate binary list with available binaries in game install directory
-        available_binaries = [f for f in Path(game_install_dir).iterdir() if f.is_file() and f.suffix == ".exe"]
-
-        # Determine recommended binary based on available binaries
-        binary_stems = [b.stem for b in available_binaries]
-        recommended_binary = None
-        if len(available_binaries) == 1:
-            recommended_binary = available_binaries[0]
-        elif "WoW_tweaked" in binary_stems:
-            recommended_binary = Path(game_install_dir) / "WoW_tweaked.exe"
-        elif "WoWFoV" in binary_stems:
-            recommended_binary = Path(game_install_dir) / "WoWFoV.exe"
-
-        for binary in available_binaries:
-            if binary.stem == "WoW_tweaked":
-                description = "Tweaked WoW Client"
-                icon_path = IMAGES / "wow_icon.png"
-            elif binary.stem == "WoWFoV":
-                description = "Field of View Fixes"
-                icon_path = IMAGES / "wow_icon.png"
-            elif binary.stem == "WoW":
-                description = "Original WoW Client"
-                icon_path = IMAGES / "wow_icon.png"
-            else:
-                description = ""
-                icon_path = IMAGES / "turtle_wow_icon.png"
-            
-            if binary == recommended_binary:
-                description += " (Recommended)"
-                icon_path = IMAGES / "star.png"
-            
-            item = QListWidgetItem(QIcon(str(icon_path)), f"{binary.stem}\n{description}")
-            item.setData(Qt.UserRole, str(binary))
-            self.binary_list.addItem(item)
+        self.populate_binary_list()
 
         # Select button
         self.select_button = QPushButton("Select", content_widget)
@@ -180,14 +149,67 @@ class BinarySelectionDialog(QDialog):
                 background: none;
             }
         """)
+    
+    def populate_binary_list(self):
+        game_install_dir = self.config.game_install_dir
+        available_binaries = [f for f in Path(game_install_dir).iterdir() if f.is_file() and f.suffix == ".exe"]
+
+        # Determine recommended binary based on available binaries
+        binary_stems = [b.stem for b in available_binaries]
+        recommended_binary = None
+        if len(available_binaries) == 1:
+            recommended_binary = available_binaries[0]
+        elif "WoW_tweaked" in binary_stems:
+            recommended_binary = Path(game_install_dir) / "WoW_tweaked.exe"
+        elif "WoWFoV" in binary_stems:
+            recommended_binary = Path(game_install_dir) / "WoWFoV.exe"
+
+        for binary in available_binaries:
+            if binary.stem == "WoW_tweaked":
+                description = "Tweaked WoW Client"
+            elif binary.stem == "WoWFoV":
+                description = "Field of View Fixes"
+            elif binary.stem == "WoW":
+                description = "Original WoW Client"
+            else:
+                description = ""
+            
+            if binary == recommended_binary:
+                description += " (Recommended)"
+                icon = QIcon(str(IMAGES / "star.png"))
+            else:
+                # Get the icon for the binary
+                try:
+                    icon_image = get_exe_icon(binary)
+                    qimage = ImageQt(icon_image)
+                    icon = QIcon(QPixmap.fromImage(qimage))
+                except Exception as e:
+                    logger.warning(f"Failed to get icon for {binary}: {e}")
+                    icon = QIcon(str(IMAGES / "turtle_wow_icon.png"))
+
+            item = QListWidgetItem(icon, f"{binary.stem}\n{description}")
+            item.setData(Qt.UserRole, str(binary))
+            self.binary_list.addItem(item)
+
+            # Highlight the previously selected binary
+            if str(binary) == self.config.selected_binary:
+                self.binary_list.setCurrentItem(item)
+                logger.debug(f"Preselected binary: {binary}")
 
     def select_binary(self):
         selected_items = self.binary_list.selectedItems()
         if selected_items:
             selected_binary = selected_items[0].data(Qt.UserRole)
             logger.debug(f"Selected binary: {selected_binary}")
+            
+            # Save the selected binary path to the config
+            self.config.selected_binary = selected_binary
+            logger.info(f"Saved selected binary path to config: {selected_binary}")
+            
             self.binary_selected.emit(selected_binary)
             self.accept()
+        else:
+            logger.warning("No binary selected")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

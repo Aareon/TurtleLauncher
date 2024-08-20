@@ -307,15 +307,9 @@ class TurtleWoWLauncher(QMainWindow):
     def open_settings(self):
         logger.debug("Opening settings dialog")
         settings_dialog = SettingsDialog(self, self.check_game_installation(), self.config)
-        settings_dialog.particles_setting_changed.connect(self.on_particles_setting_changed)
+        settings_dialog.particles_setting_changed.connect(self.launcher_widget.on_particles_setting_changed)
         settings_dialog.exec()
         logger.debug("Settings dialog closed")
-    
-    def on_particles_setting_changed(self, particles_disabled):
-        logger.debug(f"Particles setting changed: disabled = {particles_disabled}")
-        self.config.particles_disabled = particles_disabled
-        self.config.save()
-        self.launcher_widget.update_particle_effect()
 
     def on_download_button_clicked(self):
         logger.debug("Download button clicked")

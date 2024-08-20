@@ -190,15 +190,20 @@ class GradientProgressBar(QProgressBar):
         painter.drawPath(path)
 
         painter.restore()
+    
+    def _start_animation(self):
+        if not self._timer.isActive():
+            self._timer.start(16)  # Update every 16ms (approximately 60 FPS)
 
     def start_particle_effect(self):
         self._particle_effect_active = True
-        self._timer.start(16)  # Update every 16ms (approximately 60 FPS)
+        self._start_animation()
 
     def stop_particle_effect(self):
         self._particle_effect_active = False
         self._particles.clear()
-        self._timer.stop()
+        # Keep the animation running for the progress bar
+        self._start_animation()
 
     def set_circular_particles_enabled(self, enabled):
         self._circular_particles_enabled = enabled
@@ -208,8 +213,7 @@ class GradientProgressBar(QProgressBar):
 
     def showEvent(self, event):
         super().showEvent(event)
-        if self._particle_effect_active:
-            self._timer.start()
+        self._start_animation()
 
     def hideEvent(self, event):
         super().hideEvent(event)
