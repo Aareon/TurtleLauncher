@@ -1,18 +1,29 @@
 import sys
-import os
+from datetime import datetime
 from PySide6.QtWidgets import QApplication
 from turtlelauncher.windows.main_window import TurtleWoWLauncher
 from loguru import logger
+
+from pathlib import Path
+
+USER_DOCUMENTS = Path.home() / "Documents"
+TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
+if not TOOL_FOLDER.exists():
+    TOOL_FOLDER.mkdir(parents=True)
 
 def setup_logging():
     # Determine if we're running as a compiled executable
     is_compiled = getattr(sys, 'frozen', False)
 
+    # Create a timestamp for the log filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"turtlewow_launcher_{timestamp}.log"
+
     # Set up logging configuration
     config = {
         "handlers": [
             {
-                "sink": "logs/turtlewow_launcher.log",
+                "sink": TOOL_FOLDER / "logs" / log_filename,
                 "rotation": "10 MB",
                 "retention": "1 week",
                 "compression": "zip",
