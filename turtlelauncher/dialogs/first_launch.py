@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QApplication
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout
 from PySide6.QtGui import QPixmap, QPainter, QColor, QMouseEvent
-from PySide6.QtCore import Qt, QRect, QEvent, QPoint
+from PySide6.QtCore import Qt, QEvent, QPoint
 from pathlib import Path
 from loguru import logger
 
@@ -19,7 +19,10 @@ class OverlayWidget(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 128))  # Semi-transparent black
 
+
 class FirstLaunchDialog(QDialog):
+    CLOSED = 2  # Custom result code
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         logger.debug("Initializing FirstLaunchDialog")
@@ -43,6 +46,17 @@ class FirstLaunchDialog(QDialog):
         content_widget = QWidget(self)
         content_widget.setObjectName("content-widget")
         content_layout = QVBoxLayout(content_widget)
+
+        # Close button
+        close_button = QPushButton("×", content_widget)
+        close_button.setObjectName("close-button")
+        close_button.clicked.connect(self.handle_close)
+
+        # Add close button to top-right corner
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(close_button)
+        content_layout.addLayout(button_layout)
 
         # Logo
         logo = QLabel(content_widget)
@@ -106,6 +120,17 @@ class FirstLaunchDialog(QDialog):
             QPushButton:hover {
                 background-color: #5B6EAE;
             }
+            #close-button {
+                background-color: transparent;
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                margin: 5px;
+                padding: 0;
+            }
+            #close-button:hover {
+                color: #FF5555;
+            }
         """)
 
         logger.debug("FirstLaunchDialog initialized")
@@ -153,3 +178,12 @@ class FirstLaunchDialog(QDialog):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
             event.accept()
+    
+    def handle_close(self):
+        logger.debug("FirstLaunchDialog close button clicked")
+        self.done(self.CLOSED)
+
+    def closeEvent(self, event):
+        logger.debug("FirstLaunchDialog close event triggered")
+        self.done(self.CLOSED)
+        super().closeEvent(event)

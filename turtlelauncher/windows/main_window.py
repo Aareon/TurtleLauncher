@@ -13,6 +13,8 @@ from turtlelauncher.utils.downloader import DownloadExtractUtility
 from turtlelauncher.utils.get_file_version import get_file_version
 from pathlib import Path
 from loguru import logger
+from turtlelauncher.dialogs.install_status import InstallationStatusDialog
+from turtlelauncher.dialogs.settings import SettingsDialog
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -131,8 +133,11 @@ class TurtleWoWLauncher(QMainWindow):
         elif result == QDialog.DialogCode.Rejected:
             logger.debug("User chose to download the game")
             self.select_installation_directory("Select Download Directory")
+        elif result == FirstLaunchDialog.CLOSED:
+            logger.debug("First launch dialog was closed")
+            self.cancel_setup()
         else:
-            logger.debug("First launch setup canceled")
+            logger.debug("Unexpected result from first launch dialog")
             self.cancel_setup()
 
         # Ensure the dialog is deleted and the main window is updated
@@ -158,6 +163,7 @@ class TurtleWoWLauncher(QMainWindow):
         self.update()
 
     def cancel_setup(self):
+        logger.debug("Cancelling setup")
         self.launcher_widget.hide_progress_widgets()
         self.launcher_widget.progress_label.setText("Setup canceled")
         self.launcher_widget.action_button.setText("Download")
@@ -203,6 +209,7 @@ class TurtleWoWLauncher(QMainWindow):
                     QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
                     self.setup_first_launch()
             else:
+                self.launcher_widget.show_progress_widgets()
                 self.download_game()
         else:
             logger.debug("Installation directory selection canceled")
@@ -281,13 +288,12 @@ class TurtleWoWLauncher(QMainWindow):
         main_layout.addWidget(content_widget, 1)
 
         # Launcher Widget
-        self.launcher_widget = LauncherWidget()
+        self.launcher_widget = LauncherWidget(self.check_game_installation, self.config)
         self.launcher_widget.download_completed.connect(self.on_download_completed)
         self.launcher_widget.extraction_completed.connect(self.on_extraction_completed)
-        # Connect the download button signal to the first launch setup
-        self.launcher_widget.download_button_clicked.connect(self.setup_first_launch)
-        logger.debug("Connecting extraction_completed signal from `launcher_widget` to `on_extraction_completed` slot")
+        self.launcher_widget.download_button_clicked.connect(self.on_download_button_clicked)
         self.launcher_widget.error_occurred.connect(self.on_error)
+        self.launcher_widget.settings_button_clicked.connect(self.open_settings)
         main_layout.addWidget(self.launcher_widget)
 
         self.setCentralWidget(central_widget)
@@ -298,6 +304,26 @@ class TurtleWoWLauncher(QMainWindow):
             }
         """)
     
+    def open_settings(self):
+        logger.debug("Opening settings dialog")
+        settings_dialog = SettingsDialog(self, self.check_game_installation(), self.config)
+        settings_dialog.particles_setting_changed.connect(self.on_particles_setting_changed)
+        settings_dialog.exec()
+        logger.debug("Settings dialog closed")
+    
+    def on_particles_setting_changed(self, particles_disabled):
+        logger.debug(f"Particles setting changed: disabled = {particles_disabled}")
+        self.config.particles_disabled = particles_disabled
+        self.config.save()
+        self.launcher_widget.update_particle_effect()
+
+    def on_download_button_clicked(self):
+        logger.debug("Download button clicked")
+        if not self.config.exists() or not self.config.valid() or not self.check_game_installation():
+            self.setup_first_launch()
+        else:
+            self.download_game()
+
     def setup_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.windowIcon())
@@ -410,22 +436,23 @@ class TurtleWoWLauncher(QMainWindow):
                 if version:
                     logger.info(f"Game version detected: {version}")
                     self.launcher_widget.display_version_info(version)
+                    InstallationStatusDialog(self, "success", f"Turtle WoW {version} has been successfully installed!").exec()
                 else:
                     logger.warning("Game version could not be detected")
-                QMessageBox.information(self, "Installation Complete", "Turtle WoW has been successfully installed!")
+                    InstallationStatusDialog(self, "warning", "Installation completed, but game version could not be detected.").exec()
             else:
                 logger.warning("Invalid or incomplete game installation after extraction")
-                QMessageBox.warning(self, "Installation Issue", "The game files were extracted, but the installation seems incomplete. Please check the installation directory.")
+                InstallationStatusDialog(self, "error", "The game files were extracted, but the installation seems incomplete. Please check the installation directory.").exec()
                 self.setup_first_launch()  # Restart the setup process
         else:
             logger.error("Extraction completed but no folder name was provided")
-            QMessageBox.warning(self, "Installation Issue", "The game files were extracted, but there was an issue identifying the installation folder. Please check the installation directory.")
+            InstallationStatusDialog(self, "error", "The game files were extracted, but there was an issue identifying the installation folder. Please check the installation directory.").exec()
             self.setup_first_launch()  # Restart the setup process
 
     @Slot(str)
     def on_error(self, error_message):
         logger.error(f"Error occurred: {error_message}")
-        QMessageBox.critical(self, "Error", f"An error occurred: {error_message}")
+        InstallationStatusDialog(self, "error", f"An error occurred: {error_message}").exec()
 
     def showEvent(self, event):
         super().showEvent(event)

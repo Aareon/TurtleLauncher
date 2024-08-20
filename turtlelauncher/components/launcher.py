@@ -8,7 +8,6 @@ from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
 from loguru import logger
 
-from turtlelauncher.dialogs.settings import SettingsDialog
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
 
 HERE = Path(__file__).parent
@@ -23,10 +22,20 @@ class LauncherWidget(QWidget):
     error_occurred = Signal(str)
     download_button_clicked = Signal()
     play_button_clicked = Signal()
+    settings_button_clicked = Signal()
 
-    def __init__(self):
+    def __init__(self, check_game_installation_callback, config):
         super().__init__()
+
+        self.check_game_installation_callback = check_game_installation_callback
+        self.config = config
+        logger.debug(f"LauncherWidget initialized with particles_disabled: {self.config.particles_disabled}")
+
         self.initUI()
+
+        # Update particle effect based on config
+        self.update_particle_effect()
+
         self.download_utility = DownloadExtractUtility()
         self.download_utility.progress_updated.connect(self.update_progress)
         self.download_utility.download_completed.connect(self.on_download_completed)
@@ -79,6 +88,8 @@ class LauncherWidget(QWidget):
         self.progress_bar.setFixedHeight(20)
         main_layout.addWidget(self.progress_bar)
 
+        self.update_particle_effect()
+
         # Version Label
         self.version_label = QLabel()
         self.version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -113,8 +124,8 @@ class LauncherWidget(QWidget):
         # Set a maximum height for the LauncherWidget to limit vertical space usage
         self.setMaximumHeight(180)  # Adjust this value as needed
 
-        # Connect the settings button click event to open_settings method
-        self.settings_button.clicked.connect(self.open_settings)
+        # Connect the settings button click event to the new signal
+        self.settings_button.clicked.connect(self.settings_button_clicked.emit)
 
         self.progress_bar.hide()
         self.progress_label.hide()
@@ -131,7 +142,7 @@ class LauncherWidget(QWidget):
 
     def on_action_button_clicked(self):
         if self.action_button.text() == "Download":
-            self.show_progress_widgets()
+            #self.show_progress_widgets()
             self.progress_label.setText("Waiting...")
             self.download_button_clicked.emit()
         elif self.action_button.text() == "Stop":
@@ -147,10 +158,14 @@ class LauncherWidget(QWidget):
                 logger.info("Setting progress_label status to 'Extracting...'")
             self.progress_label.setText(f"Extracting... {percent_int}%")
             self.speed_label.hide()
+            self.total_size_label.hide()
+            self.progress_bar.show()  # Ensure progress bar is visible during extraction
         elif state == "downloading":
             self.progress_label.setText(f"Downloading... {percent_int}%")
             self.speed_label.show()
             self.speed_label.setText(speed)
+            self.total_size_label.show()
+            self.progress_bar.show()  # Ensure progress bar is visible during download
         self.progress_bar.setValue(percent_int)
 
     @Slot()
@@ -159,7 +174,7 @@ class LauncherWidget(QWidget):
         self.speed_label.hide()
         self.progress_bar.setValue(100)
         self.total_size_label.hide()
-        self.progress_bar.hide()
+        self.progress_bar.show()  # Keep progress bar visible
         self.action_button.setText("Play")
         self.is_downloading = False
         logger.info("Download completed. Preparing for extraction...")
@@ -184,9 +199,10 @@ class LauncherWidget(QWidget):
     @Slot(str)
     def on_extraction_completed(self, extracted_folder):
         self.progress_label.setText("Installation completed!")
-        self.speed_label.hide()  # Ensure speed label is hidden after extraction
+        self.speed_label.hide()
         self.progress_bar.setValue(100)
         self.progress_bar.stop_particle_effect()
+        self.progress_bar.hide()  # Hide progress bar after extraction is complete
         self.action_button.setText("Play")
         self.is_downloading = False
         self.extraction_completed.emit(extracted_folder)
@@ -203,8 +219,13 @@ class LauncherWidget(QWidget):
     @Slot(bool)
     def on_status_changed(self, is_downloading):
         if is_downloading:
-            self.progress_bar.start_particle_effect()
+            if not self.config.particles_disabled:
+                logger.debug("Download started, starting particle effect")
+                self.progress_bar.start_particle_effect()
+            else:
+                logger.debug("Download started, but particles are disabled")
         else:
+            logger.debug("Download stopped or completed, stopping particle effect")
             self.progress_bar.stop_particle_effect()
         
         # Show or hide speed label based on download status
@@ -223,6 +244,14 @@ class LauncherWidget(QWidget):
         self.action_button.setText("Stop")
         self.is_downloading = True
         logger.debug(f"Starting download from {url} to {extract_path}")
+        
+        # Only start particle effect if it's not disabled
+        if not self.config.particles_disabled:
+            logger.debug("Starting particle effect for download")
+            self.progress_bar.start_particle_effect()
+        else:
+            logger.debug("Particles are disabled, not starting particle effect")
+
         QTimer.singleShot(0, lambda: self.download_utility.download_and_extract(url, extract_path))
     
     def stop_download(self):
@@ -232,6 +261,7 @@ class LauncherWidget(QWidget):
             self.download_utility.cancel_download()
             self.progress_label.setText("Download stopped")
             self.progress_bar.setValue(0)
+            self.progress_bar.stop_particle_effect()
             self.action_button.setText("Download")
             self.is_downloading = False
             logger.info("Download stopped by user")
@@ -277,8 +307,20 @@ class LauncherWidget(QWidget):
         except Exception as e:
             logger.error(f"Error setting total file size: {e}")
             self.total_size_label.setText("Total size: Error")
+        self.update_particle_effect()
     
-    @Slot()
-    def open_settings(self):
-        settings_dialog = SettingsDialog(self)
-        settings_dialog.exec()
+    def update_particle_effect(self):
+        logger.debug(f"Updating particle effect. Particles disabled: {self.config.particles_disabled}")
+        if self.config.particles_disabled:
+            logger.debug("Stopping particle effect")
+            self.progress_bar.stop_particle_effect()
+        else:
+            logger.debug("Particle effect enabled, but not starting until download begins")
+    
+    def on_particles_setting_changed(self, particles_disabled):
+        logger.debug(f"Particles setting changed: disabled = {particles_disabled}")
+        self.config.particles_disabled = particles_disabled
+        self.update_particle_effect()
+        if particles_disabled and self.is_downloading:
+            logger.debug("Stopping particle effect due to setting change during download")
+            self.progress_bar.stop_particle_effect()

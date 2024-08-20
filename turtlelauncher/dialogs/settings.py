@@ -1,21 +1,32 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, 
                                QCheckBox, QHBoxLayout)
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, Signal
 from pathlib import Path
 from loguru import logger
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None):
+    particles_setting_changed = Signal(bool)
+
+    def __init__(self, parent=None, game_installed=False, config=None):
         super().__init__(parent, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle("Turtle WoW Settings")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setModal(True)
+        self.game_installed = game_installed
+        self.config = config
+
+        logger.debug(f"Game installed: {self.game_installed}")
+        logger.debug(f"Particles disabled: {self.config.particles_disabled}")
+        logger.debug(f"Config: {self.config}")
 
         self.dragging = False
         self.drag_position = QPoint()
 
+        self.setup_ui()
+
+    def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
 
@@ -39,14 +50,18 @@ class SettingsDialog(QDialog):
         content_layout.addWidget(title)
 
         # Buttons
-        self.create_button("Clear Addon Settings", self.clear_addon_settings, content_layout)
-        self.create_button("Clear Cache", self.clear_cache, content_layout)
-        self.create_button("Open Install Directory", self.open_install_directory, content_layout)
-        self.create_button("Select Binary to Launch", self.select_binary, content_layout)
+        self.clear_addon_settings_button = self.create_button("Clear Addon Settings", self.clear_addon_settings, content_layout)
+        self.clear_cache_button = self.create_button("Clear Cache", self.clear_cache, content_layout)
+        self.open_install_directory_button = self.create_button("Open Install Directory", self.open_install_directory, content_layout)
+        self.select_binary_button = self.create_button("Select Binary to Launch", self.select_binary, content_layout)
+
+        # Update button states
+        self.update_button_states()
 
         # Particles checkbox
-        self.particles_checkbox = QCheckBox("Enable Particles", content_widget)
+        self.particles_checkbox = QCheckBox("Disable Particles", self)
         self.particles_checkbox.setObjectName("particles-checkbox")
+        self.particles_checkbox.setChecked(self.config.particles_disabled)
         content_layout.addWidget(self.particles_checkbox)
 
         # Close button
@@ -88,6 +103,10 @@ class SettingsDialog(QDialog):
             QPushButton:hover {
                 background-color: #5B6EAE;
             }
+            QPushButton:disabled {
+                background-color: #4A5162;
+                color: #8E9297;
+            }
             #close-button {
                 background-color: transparent;
                 color: white;
@@ -99,10 +118,24 @@ class SettingsDialog(QDialog):
             #close-button:hover {
                 color: #FF5555;
             }
-            #particles-checkbox {
+            QCheckBox {
                 color: white;
                 font-size: 14px;
                 margin: 10px 20px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #7289DA;
+                border-radius: 4px;
+                background-color: rgba(44, 47, 51, 230);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #7289DA;
+                image: url(check.png);
+            }
+            QCheckBox::indicator:hover {
+                border-color: #5B6EAE;
             }
         """)
 
@@ -110,6 +143,17 @@ class SettingsDialog(QDialog):
         button = QPushButton(text, self)
         button.clicked.connect(function)
         layout.addWidget(button)
+        return button
+
+    def update_button_states(self):
+        buttons = [
+            self.clear_addon_settings_button,
+            self.clear_cache_button,
+            self.open_install_directory_button,
+            self.select_binary_button
+        ]
+        for button in buttons:
+            button.setEnabled(self.game_installed)
 
     def clear_addon_settings(self):
         logger.debug("Clearing addon settings")
@@ -124,10 +168,8 @@ class SettingsDialog(QDialog):
         # Implement directory opening logic here
 
     def select_binary(self):
-        binary_dialog = BinarySelectionDialog(self)
+        binary_dialog = BinarySelectionDialog(self.config, self)
         if binary_dialog.exec() == QDialog.DialogCode.Accepted:
-            # The selected binary can be retrieved from the dialog if needed
-            # For now, we'll just log that a binary was selected
             logger.debug("Binary selected from custom dialog")
 
     def mousePressEvent(self, event):
@@ -145,3 +187,21 @@ class SettingsDialog(QDialog):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
             event.accept()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Update checkbox state when dialog is shown
+        self.particles_checkbox.setChecked(self.config.particles_disabled)
+
+    def closeEvent(self, event):
+        # Save the particles setting when the dialog is closed
+        self.save_particles_setting()
+        super().closeEvent(event)
+
+    def save_particles_setting(self):
+        is_checked = self.particles_checkbox.isChecked()
+        if is_checked != self.config.particles_disabled:
+            logger.debug(f"Saving particles setting: {is_checked}")
+            self.config.particles_disabled = is_checked
+            self.config.save()
+            self.particles_setting_changed.emit(is_checked)

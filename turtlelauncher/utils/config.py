@@ -10,6 +10,9 @@ class Config:
         self.selected_binary = None
         self.particles_disabled = False
 
+        if self.exists():
+            self.load()
+
     def exists(self):
         exists = self.config_path.exists()
         logger.debug(f"Config exists: {exists}")
@@ -29,7 +32,7 @@ class Config:
 
     def save(self):
         config = {
-            'game_install_dir': str(self.game_install_dir),
+            'game_install_dir': str(self.game_install_dir) if self.game_install_dir else None,
             'selected_binary': self.selected_binary,
             'particles_disabled': self.particles_disabled
         }
@@ -45,7 +48,7 @@ class Config:
         try:
             with open(self.config_path, 'r') as f:
                 config = json.load(f)
-            self.game_install_dir = Path(config.get('game_install_dir'))
+            self.game_install_dir = Path(config.get('game_install_dir')) if config.get('game_install_dir') else None
             self.selected_binary = config.get('selected_binary')
             self.particles_disabled = config.get('particles_disabled', False)
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
