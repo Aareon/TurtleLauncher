@@ -7,11 +7,6 @@ from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from loguru import logger
 import time
 
-# Configure logger
-logger.remove()
-logger.add("downloader.log", rotation="10 MB", level="INFO")
-logger.add(lambda msg: print(msg, end=""), level="INFO")  # Also print to console
-
 
 class WorkerSignals(QObject):
     progress_updated = Signal(int, str, str)  # (percent, speed, state)
