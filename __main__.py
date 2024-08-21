@@ -2,14 +2,9 @@ import sys
 from datetime import datetime
 from PySide6.QtWidgets import QApplication
 from turtlelauncher.windows.main_window import TurtleWoWLauncher
+from turtlelauncher.utils.config import TOOL_FOLDER
 from loguru import logger
 
-from pathlib import Path
-
-USER_DOCUMENTS = Path.home() / "Documents"
-TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
-if not TOOL_FOLDER.exists():
-    TOOL_FOLDER.mkdir(parents=True)
 
 def setup_logging():
     # Determine if we're running as a compiled executable
