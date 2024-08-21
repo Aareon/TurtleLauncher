@@ -38,6 +38,9 @@ Section "Install"
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
     CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\Turtle WoW Launcher.exe"
     
+    ; Create desktop shortcut
+    CreateShortCut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\Turtle WoW Launcher.exe"
+    
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
@@ -52,6 +55,7 @@ Section "Uninstall"
     Delete "$INSTDIR\Turtle WoW Launcher.exe"
     Delete "$INSTDIR\LICENSE"
     Delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
+    Delete "$DESKTOP\${APPNAME}.lnk"  ; Remove desktop shortcut
     RMDir "$SMPROGRAMS\${APPNAME}"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir "$INSTDIR"
