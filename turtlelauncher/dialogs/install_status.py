@@ -9,9 +9,10 @@ class InstallationStatusDialog(BaseDialog):
         super().__init__(parent, title=title, message=message, icon_path=icon_path)
 
         self.status = status
-        self.setup_ui()
+        self.setup_ui(title, message, icon_path)
 
-    def setup_ui(self):
+    def setup_ui(self, title, message, icon_path):
+        super().setup_ui(title, message, icon_path)
         # OK button
         self.ok_button = self.create_button("OK", self.accept, self.content_layout, "ok-button")
 
