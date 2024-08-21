@@ -1,4 +1,6 @@
-; Installer script for PySide6 Application
+; Installer script for Turtle WoW Launcher
+
+!include "MUI2.nsh"
 
 ; Define your application name, version, and publisher
 !define APPNAME "Turtle WoW Launcher"
@@ -10,66 +12,48 @@ Name "${APPNAME}"
 InstallDir "$PROGRAMFILES\${APPNAME}"
 OutFile ".\build\Turtle WoW Launcher Setup.exe"
 
-; Set the installer icon (replace with your own icon if you have one)
+; Set the installer icon
 !define MUI_ICON ".\assets\images\icon.ico"
 
-; Modern interface settings
-!include "MUI2.nsh"
-
+; Define UI pages
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE ".\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
+; Define UI pages for the uninstaller
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
+; Set UI language
+!insertmacro MUI_LANGUAGE "English"
+
 ; Default section
 Section "Install"
-
-    ; Set output path to the installation directory
     SetOutPath $INSTDIR
-    
-    ; Add files to install
     File ".\build\__main__.dist\Turtle WoW Launcher.exe"
-    ; Add any additional files or folders your application needs
-    ; File /r ".\assets"
-
-    ; Create start menu shortcut
+    File ".\LICENSE"
+    
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
     CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\Turtle WoW Launcher.exe"
-
-    ; Create uninstaller
+    
     WriteUninstaller "$INSTDIR\Uninstall.exe"
-
-    ; Add uninstall information to Add/Remove Programs
+    
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "Publisher" "${PUBLISHER}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayVersion" "${APPVERSION}"
-
 SectionEnd
 
 ; Uninstaller section
 Section "Uninstall"
-    
-    ; Remove installed files
     Delete "$INSTDIR\Turtle WoW Launcher.exe"
-    ; Remove any additional files or folders you've added
-    ; RMDir /r "$INSTDIR\assets"
-
-    ; Remove start menu items
+    Delete "$INSTDIR\LICENSE"
     Delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
     RMDir "$SMPROGRAMS\${APPNAME}"
-
-    ; Remove uninstaller
     Delete "$INSTDIR\Uninstall.exe"
-
-    ; Remove installation directory
     RMDir "$INSTDIR"
-
-    ; Remove registry keys
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
-
 SectionEnd

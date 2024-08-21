@@ -34,8 +34,8 @@ def setup_logging():
         "extra": {"user": "someone"}
     }
 
-    # Add console logging only if not compiled
-    if not is_compiled:
+    # Add console logging if not compiled or if running in a terminal
+    if not is_compiled or sys.stderr.isatty():
         config["handlers"].append({
             "sink": sys.stdout,
             "level": "INFO",
@@ -44,6 +44,9 @@ def setup_logging():
 
     # Apply the configuration
     logger.configure(**config)
+
+    if sys.stderr.isatty():
+        logger.info("Running in console mode - logs will be displayed here")
 
 if __name__ == "__main__":
     setup_logging()
