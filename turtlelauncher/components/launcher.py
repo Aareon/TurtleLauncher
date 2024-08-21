@@ -272,7 +272,7 @@ class LauncherWidget(QWidget):
         QTimer.singleShot(0, lambda: self.download_utility.download_and_extract(url, extract_path))
     
     def stop_download(self):
-        dialog = StopDownloadDialog(self)
+        dialog = StopDownloadDialog(self.parent)
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
             self.download_utility.cancel_download()
