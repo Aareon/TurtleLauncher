@@ -10,7 +10,7 @@ from turtlelauncher.utils.config import Config, TOOL_FOLDER, IMAGES, FONTS, DATA
 from turtlelauncher.dialogs.first_launch import FirstLaunchDialog
 from turtlelauncher.dialogs.install_directory import InstallationDirectoryDialog
 from turtlelauncher.utils.downloader import DownloadExtractUtility
-from turtlelauncher.utils.get_file_version import get_file_version
+from turtlelauncher.utils.game_utils import check_game_installation, get_game_version, update_game_install_dir
 from pathlib import Path
 from loguru import logger
 from turtlelauncher.dialogs.install_status import InstallationStatusDialog
@@ -69,39 +69,9 @@ class TurtleWoWLauncher(QMainWindow):
         
         # Use QTimer to check for first launch after the main window is shown
         QTimer.singleShot(0, self.check_first_launch)
-        
-    def check_game_installation(self):
-        logger.info("Checking game installation")
-        if self.config.game_install_dir is None:
-            logger.debug("No game installation directory set in config")
-            return False
-        
-        game_folder = Path(self.config.game_install_dir)
-        logger.info(f"Checking for installation in: {game_folder}")
-        
-        game_binary = game_folder / "WoW.exe"
-        data_folder = game_folder / "Data"
-
-        if self.config.selected_binary:
-            game_binary = Path(self.config.selected_binary)
-            logger.debug(f"Using selected binary: {game_binary}")
-        
-        logger.debug(f"Checking for WoW.exe at: {game_binary}")
-        logger.debug(f"Checking for Data folder at: {data_folder}")
-        
-        if game_binary.exists() and data_folder.is_dir():
-            logger.info("Valid game installation found")
-            return True
-        else:
-            if not game_binary.exists():
-                logger.warning(f"{game_binary} not found")
-            if not data_folder.is_dir():
-                logger.warning("Data folder not found or not a directory")
-            logger.info("Invalid or incomplete game installation")
-            return False
     
     def check_first_launch(self):
-        if not self.config.exists() or not self.config.valid() or not self.check_game_installation():
+        if not self.config.exists() or not self.config.valid() or not check_game_installation(self.config.game_install_dir, self.config.selected_binary):
             logger.info("No valid game installation found. Setting Download button.")
             self.launcher_widget.action_button.setText("Download")
         else:
@@ -162,7 +132,7 @@ class TurtleWoWLauncher(QMainWindow):
         self.update()
 
     def update_launcher_with_game_version(self):
-        version = self.get_game_version()
+        version = get_game_version(self.config.game_install_dir)
         if version:
             logger.info(f"Game version detected: {version}")
             self.launcher_widget.display_version_info(version)
@@ -191,7 +161,7 @@ class TurtleWoWLauncher(QMainWindow):
             self.config.save()
             
             if is_existing_install:
-                if self.check_game_installation():
+                if check_game_installation(self.config.game_install_dir, self.config.selected_binary):
                     logger.debug("Valid existing installation selected")
                     self.launcher_widget.set_play_mode()
                     self.update_launcher_with_game_version()
@@ -221,7 +191,7 @@ class TurtleWoWLauncher(QMainWindow):
             self.config.save()
             
             if self.install_dir_dialog.is_existing_install:
-                if self.check_game_installation():
+                if check_game_installation(self.config.game_install_dir, self.config.selected_binary):
                     logger.debug("Valid existing installation selected")
                     self.launcher_widget.set_play_mode()
                     self.update_launcher_with_game_version()
@@ -279,7 +249,7 @@ class TurtleWoWLauncher(QMainWindow):
         main_layout.addWidget(content_widget, 1)
 
         # Launcher Widget
-        self.launcher_widget = LauncherWidget(self, self.check_game_installation, self.config)
+        self.launcher_widget = LauncherWidget(self, lambda: check_game_installation(self.config.game_install_dir, self.config.selected_binary), self.config)
         self.launcher_widget.download_completed.connect(self.on_download_completed)
         self.launcher_widget.extraction_completed.connect(self.on_extraction_completed)
         self.launcher_widget.download_button_clicked.connect(self.on_download_button_clicked)
@@ -297,14 +267,14 @@ class TurtleWoWLauncher(QMainWindow):
     
     def open_settings(self):
         logger.debug("Opening settings dialog")
-        settings_dialog = SettingsDialog(self, self.check_game_installation(), self.config)
+        settings_dialog = SettingsDialog(self, check_game_installation(self.config.game_install_dir, self.config.selected_binary), self.config)
         settings_dialog.particles_setting_changed.connect(self.launcher_widget.on_particles_setting_changed)
         settings_dialog.exec()
         logger.debug("Settings dialog closed")
 
     def on_download_button_clicked(self):
         logger.debug("Download button clicked")
-        if not self.config.exists() or not self.config.valid() or not self.check_game_installation():
+        if not self.config.exists() or not self.config.valid() or not check_game_installation(self.config.game_install_dir, self.config.selected_binary):
             self.setup_first_launch()
         else:
             self.download_game()
@@ -325,27 +295,6 @@ class TurtleWoWLauncher(QMainWindow):
     def tray_icon_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show()
-    
-    def update_game_install_dir(self, extracted_folder):
-        install_dir = Path(self.config.game_install_dir)
-        new_install_dir = install_dir / extracted_folder
-        self.config.game_install_dir = str(new_install_dir)
-        self.config.save()
-        logger.info(f"Updated game_install_dir to: {self.config.game_install_dir}")
-    
-    def get_game_version(self):
-        exe_path = Path(self.config.game_install_dir) / "WoW.exe"
-        logger.debug(f"Attempting to get version for: {exe_path}")
-        if exe_path.exists():
-            version = get_file_version(str(exe_path))
-            if version:
-                logger.debug(f"WoW.exe version: {version}")
-                return version
-            else:
-                logger.warning("Failed to retrieve WoW.exe version")
-        else:
-            logger.warning(f"WoW.exe not found at {exe_path}")
-        return None
     
     def display_version_info(self, version):
         version_str = f"Turtle WoW Version: {version}"
@@ -415,9 +364,9 @@ class TurtleWoWLauncher(QMainWindow):
     def on_extraction_completed(self, extracted_folder):
         logger.info(f"Extraction completed. Extracted folder: {extracted_folder}")
         if extracted_folder:
-            self.update_game_install_dir(extracted_folder)
-            if self.check_game_installation():
-                version = self.get_game_version()
+            self.config = update_game_install_dir(extracted_folder, self.config)
+            if check_game_installation(self.config.game_install_dir, self.config.selected_binary):
+                version = get_game_version(self.config.game_install_dir)
                 if version:
                     logger.info(f"Game version detected: {version}")
                     self.launcher_widget.display_version_info(version)
