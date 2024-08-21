@@ -4,7 +4,7 @@
 
 ; Define your application name, version, and publisher
 !define APPNAME "Turtle WoW Launcher"
-!define APPVERSION "1.0.0"
+!define APPVERSION "1.0.0b1"
 !define PUBLISHER "Aareon Sullivan"
 
 ; Main install settings
@@ -34,6 +34,7 @@ Section "Install"
     SetOutPath $INSTDIR
     File ".\build\__main__.dist\Turtle WoW Launcher.exe"
     File ".\LICENSE"
+    File /r ".\build\__main__.dist\*.*"
     
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
     CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\Turtle WoW Launcher.exe"
