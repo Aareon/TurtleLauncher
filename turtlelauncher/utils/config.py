@@ -2,6 +2,20 @@ import json
 from pathlib import Path
 from loguru import logger
 
+ROOT_DIR = Path(__file__).parent.parent
+ASSETS = ROOT_DIR.parent / "assets"
+DATA = ASSETS / "data"
+IMAGES = ASSETS / "images"
+FONTS = ASSETS / "fonts"
+
+USER_DOCUMENTS = Path.home() / "Documents"
+TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
+if not TOOL_FOLDER.exists():
+    TOOL_FOLDER.mkdir(parents=True)
+
+DOWNLOAD_URL = "https://turtle-eu.b-cdn.net/twmoa_1171.zip"
+
+
 class Config:
     def __init__(self, config_path: Path | str):
         self.config_path = config_path if isinstance(config_path, Path) else Path(config_path)
@@ -10,6 +24,8 @@ class Config:
         self.selected_binary = None
         self.particles_disabled = False
         self.transparency_disabled = False
+
+        self._loaded = False
 
         if self.exists():
             self.load()
@@ -71,6 +87,7 @@ class Config:
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")
             logger.debug(f"Config loaded - Transparency disabled: {self.transparency_disabled}")
+            self._loaded = True
             return True
         except Exception as e:
             logger.exception(f"Error loading config: {e}")

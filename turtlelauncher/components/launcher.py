@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStyleOption, QStyle, QLabel, QDialog, QMessageBox
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStyleOption, QStyle, QLabel, QDialog
 from PySide6.QtGui import QFont, QPainter, QFontDatabase, QColor
 from PySide6.QtCore import Slot, Signal, QTimer, Qt
 from pathlib import Path
@@ -6,9 +6,10 @@ from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.image_button import ImageButton
 from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
+from turtlelauncher.utils.config import FONTS
 from loguru import logger
 import subprocess
-import shlex
+import sys
 import os
 
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
@@ -16,11 +17,6 @@ from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.game_launch import GameLaunchDialog
 from turtlelauncher.dialogs.error import ErrorDialog
 
-HERE = Path(__file__).parent
-ASSETS = HERE.parent.parent / "assets"
-FONTS = ASSETS / "fonts"
-DATA = HERE / "data"
-IMAGES = ASSETS / "images"
 
 class LauncherWidget(QWidget):
     download_completed = Signal()
@@ -30,11 +26,17 @@ class LauncherWidget(QWidget):
     play_button_clicked = Signal()
     settings_button_clicked = Signal()
 
-    def __init__(self, check_game_installation_callback, config):
+    def __init__(self, parent, check_game_installation_callback, config):
         super().__init__()
 
+        self.parent = parent
         self.check_game_installation_callback = check_game_installation_callback
         self.config = config
+        if not self.config._loaded:
+            self.config.load()
+            logger.info(f"Loaded config: {self.config}. Selected binary: {self.config.selected_binary}")
+        else:
+            logger.info(f"Config already loaded: {self.config}. Selected binary: {self.config.selected_binary}")
         logger.debug(f"LauncherWidget initialized with particles_disabled: {self.config.particles_disabled}")
         
         self.game_process = None
@@ -382,68 +384,83 @@ class LauncherWidget(QWidget):
     def validate_selected_binary(self):
         if self.config.selected_binary:
             binary_path = Path(self.config.selected_binary)
-            if not binary_path.exists():
-                logger.warning(f"Selected binary no longer exists: {binary_path}")
-                self.config.selected_binary = None
-                self.show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+            try:
+                if not binary_path.exists():
+                    logger.warning(f"Selected binary no longer exists: {binary_path}")
+                    self.config.selected_binary = None
+                    self.show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+                    return False
+                
+                if not os.access(binary_path, os.R_OK):
+                    logger.warning(f"Selected binary is not readable: {binary_path}")
+                    self.show_error_dialog("Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
+                    return False
+                
+                if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
+                    logger.warning(f"Selected binary is not executable: {binary_path}")
+                    self.show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
+                    return False
+                
+                logger.info(f"Selected binary is valid: {binary_path}")
+                return True
+            except Exception as e:
+                logger.error(f"Error validating binary: {e}")
+                self.show_error_dialog("Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
                 return False
-            
-            if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
-                logger.warning(f"Selected binary is not executable: {binary_path}")
-                self.show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
-                return False
-            
-            logger.info(f"Selected binary is valid: {binary_path}")
-            return True
         else:
             logger.info("No binary currently selected")
             return False
     
     def execute_selected_binary(self):
-        if self.config.selected_binary:
-            try:
-                binary_path = Path(self.config.selected_binary)
-                logger.info(f"Attempting to execute: {binary_path}")
-                
-                # Check if the file exists
-                if not binary_path.exists():
-                    raise FileNotFoundError(f"The selected binary does not exist: {binary_path}")
-                
-                # Check if the file is executable (for non-Windows systems)
-                if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
-                    raise PermissionError(f"The selected binary is not executable: {binary_path}")
-                
-                # Create and show the GameLaunchDialog
-                self.game_launch_dialog = GameLaunchDialog(self)
-                self.game_launch_dialog.show()
-
-                # Start the subprocess
-                try:
-                    # Use shlex.split to properly handle paths with spaces
-                    command = shlex.split(str(binary_path))
-                    logger.debug(f"Prepared command: {command}")
-                    self.game_process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                except subprocess.SubprocessError as e:
-                    raise RuntimeError(f"Failed to start the game process: {str(e)}")
-                except OSError as e:
-                    raise RuntimeError(f"OS error occurred while starting the game process: {str(e)}")
-
-                # Check if the process was created successfully
-                if self.game_process.pid is None:
-                    raise RuntimeError("Failed to get process ID after creation")
-
-                # Start monitoring the process
-                self.process_monitor_timer.start(1000)  # Check every second
-                
-                logger.info(f"Binary execution initiated successfully. PID: {self.game_process.pid}")
-            except Exception as e:
-                error_message = f"Failed to execute the selected binary: {str(e)}"
-                logger.error(error_message, exc_info=True)
-                if self.game_launch_dialog:
-                    self.game_launch_dialog.close()
-                self.show_error_dialog("Execution Error", error_message)
-        else:
+        if not self.config.selected_binary:
             logger.warning("No binary selected for execution")
+            self.show_error_dialog("Execution Error", "No game binary has been selected. Please select a binary first.")
+            return
+
+        binary_path = Path(self.config.selected_binary)
+        
+        try:
+            logger.info(f"Attempting to execute: {binary_path}")
+            
+            if not binary_path.exists():
+                raise FileNotFoundError(f"The selected binary does not exist: {binary_path}")
+            
+            if not os.access(binary_path, os.R_OK):
+                raise PermissionError(f"The selected binary is not readable: {binary_path}")
+            
+            if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
+                raise PermissionError(f"The selected binary is not executable: {binary_path}")
+            
+            # Create and show the GameLaunchDialog
+            self.game_launch_dialog = GameLaunchDialog(self.parent)
+            self.game_launch_dialog.show()
+
+            # Start the subprocess
+            command = [str(binary_path)]
+            logger.debug(f"Prepared command: {command}")
+            
+            self.game_process = subprocess.Popen(
+                command,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=binary_path.parent
+            )
+
+            # Check if the process was created successfully
+            if self.game_process.pid is None:
+                raise RuntimeError("Failed to get process ID after creation")
+
+            # Start monitoring the process
+            self.process_monitor_timer.start(1000)  # Check every second
+            
+            logger.info(f"Binary execution initiated successfully. PID: {self.game_process.pid}")
+        except Exception as e:
+            error_message = f"Failed to execute the selected binary: {str(e)}"
+            logger.error(error_message, exc_info=True)
+            if self.game_launch_dialog:
+                self.game_launch_dialog.close()
+            self.show_error_dialog("Execution Error", error_message)
     
     @Slot(str)
     def on_binary_selected(self, selected_binary):
@@ -452,6 +469,6 @@ class LauncherWidget(QWidget):
         self.play_button_clicked.emit()
     
     def open_binary_selection_dialog(self):
-        dialog = BinarySelectionDialog(self.config, self)
+        dialog = BinarySelectionDialog(self.config, self.parent)
         dialog.binary_selected.connect(self.on_binary_selected)
         dialog.exec()

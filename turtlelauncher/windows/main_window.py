@@ -6,7 +6,7 @@ from turtlelauncher.components.featured_content import FeaturedContent
 from turtlelauncher.components.launcher import LauncherWidget
 from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.components.header import HeaderWidget
-from turtlelauncher.utils.config import Config
+from turtlelauncher.utils.config import Config, TOOL_FOLDER, IMAGES, FONTS, DATA, DOWNLOAD_URL
 from turtlelauncher.dialogs.first_launch import FirstLaunchDialog
 from turtlelauncher.dialogs.install_directory import InstallationDirectoryDialog
 from turtlelauncher.utils.downloader import DownloadExtractUtility
@@ -15,19 +15,6 @@ from pathlib import Path
 from loguru import logger
 from turtlelauncher.dialogs.install_status import InstallationStatusDialog
 from turtlelauncher.dialogs.settings import SettingsDialog
-
-HERE = Path(__file__).parent
-ASSETS = HERE.parent.parent / "assets"
-DATA = ASSETS / "data"
-IMAGES = ASSETS / "images"
-FONTS = ASSETS / "fonts"
-
-USER_DOCUMENTS = Path.home() / "Documents"
-TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
-if not TOOL_FOLDER.exists():
-    TOOL_FOLDER.mkdir(parents=True)
-
-DOWNLOAD_URL = "https://turtle-eu.b-cdn.net/twmoa_1171.zip"
 
 
 class TurtleWoWLauncher(QMainWindow):
@@ -94,6 +81,10 @@ class TurtleWoWLauncher(QMainWindow):
         
         game_binary = game_folder / "WoW.exe"
         data_folder = game_folder / "Data"
+
+        if self.config.selected_binary:
+            game_binary = Path(self.config.selected_binary)
+            logger.debug(f"Using selected binary: {game_binary}")
         
         logger.debug(f"Checking for WoW.exe at: {game_binary}")
         logger.debug(f"Checking for Data folder at: {data_folder}")
@@ -103,9 +94,9 @@ class TurtleWoWLauncher(QMainWindow):
             return True
         else:
             if not game_binary.exists():
-                logger.debug("WoW.exe not found")
+                logger.warning(f"{game_binary} not found")
             if not data_folder.is_dir():
-                logger.debug("Data folder not found or not a directory")
+                logger.warning("Data folder not found or not a directory")
             logger.info("Invalid or incomplete game installation")
             return False
     
@@ -288,7 +279,7 @@ class TurtleWoWLauncher(QMainWindow):
         main_layout.addWidget(content_widget, 1)
 
         # Launcher Widget
-        self.launcher_widget = LauncherWidget(self.check_game_installation, self.config)
+        self.launcher_widget = LauncherWidget(self, self.check_game_installation, self.config)
         self.launcher_widget.download_completed.connect(self.on_download_completed)
         self.launcher_widget.extraction_completed.connect(self.on_extraction_completed)
         self.launcher_widget.download_button_clicked.connect(self.on_download_button_clicked)
