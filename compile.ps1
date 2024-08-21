@@ -45,6 +45,7 @@ $nuitkaCommand = @(
     "--plugin-enable=pyside6",
     "--output-dir=`"$OutputDir`"",
     "--output-filename=`"$AppName.exe`""
+    "--windows-disable-console"
 )
 
 if (Test-Path $IconPath) {
@@ -57,11 +58,6 @@ $nuitkaCommand += @(
     "--include-qt-plugins=all",
     "--include-data-dir=.\assets=assets"
 )
-
-# Add console for debugging if EnableConsole switch is present
-if ($EnableConsole) {
-    $nuitkaCommand += "--windows-disable-console"
-}
 
 # Add any additional flags
 if ($AdditionalFlags) {
