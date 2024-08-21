@@ -2,6 +2,7 @@ from turtlelauncher.dialogs.base import BaseDialog
 from PySide6.QtWidgets import QProgressBar, QLabel
 from PySide6.QtCore import Qt, QTimer
 from pathlib import Path
+from loguru import logger
 
 class GameLaunchDialog(BaseDialog):
     def __init__(self, parent=None):
@@ -55,3 +56,13 @@ class GameLaunchDialog(BaseDialog):
             }
         """
         return base_stylesheet + additional_styles
+
+    def debug_visibility(self):
+        logger.debug(f"GameLaunchDialog visibility: {self.isVisible()}, Geometry: {self.geometry()}")
+        if self.parent():
+            logger.debug(f"Parent geometry: {self.parent().geometry()}")
+
+    def closeEvent(self, event):
+        logger.info("GameLaunchDialog closeEvent triggered")
+        self.debug_timer.stop()
+        super().closeEvent(event)

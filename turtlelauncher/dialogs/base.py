@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QPoint, Signal
 from pathlib import Path
 from loguru import logger
 from turtlelauncher.widgets.tabs import CustomTabWidget
+from turtlelauncher.utils.color import parse_color
 
 class BaseDialog(QDialog):
     setting_changed = Signal(str, bool)
@@ -27,6 +28,7 @@ class BaseDialog(QDialog):
 
         self.tab_widget = None
         self.settings = {}
+        self.buttons = {}
 
         self.setup_ui(title, message, icon_path)
         self.layout.addWidget(self.content_widget)
@@ -74,12 +76,14 @@ class BaseDialog(QDialog):
         title_label.setObjectName("title-label")
         self.content_layout.addWidget(title_label)
 
-    def add_message(self, message):
+    def add_message(self, message, color=None):
         if isinstance(message, str):
             message_label = QLabel(message, self.content_widget)
             message_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             message_label.setObjectName("message-label")
             message_label.setWordWrap(True)
+            if color:
+                message_label.setStyleSheet(f"color: {parse_color(color)};")
             self.content_layout.addWidget(message_label)
         elif isinstance(message, list):
             for idx, msg in enumerate(message):
@@ -87,6 +91,8 @@ class BaseDialog(QDialog):
                 msg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 msg_label.setObjectName(f"message-label-{idx}")
                 msg_label.setWordWrap(True)
+                if color:
+                    msg_label.setStyleSheet(f"color: {parse_color(color)};")
                 self.content_layout.addWidget(msg_label)
     
     def create_tab_widget(self):
@@ -118,6 +124,7 @@ class BaseDialog(QDialog):
         button.clicked.connect(function)
         if layout:
             layout.addWidget(button)
+        self.buttons[text] = button  # Store the button in the buttons dictionary
         return button
 
     def generate_stylesheet(self, custom_styles=None):

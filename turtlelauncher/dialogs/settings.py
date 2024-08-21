@@ -2,7 +2,7 @@ from turtlelauncher.dialogs.base import BaseDialog
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog
 from PySide6.QtCore import Qt, Signal, QTimer
 from loguru import logger
-from turtlelauncher.utils.config import TOOL_FOLDER
+from turtlelauncher.utils.config import TOOL_FOLDER, IMAGES
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
 from pathlib import Path
@@ -15,7 +15,7 @@ class SettingsDialog(BaseDialog):
     transparency_setting_changed = Signal(bool)
 
     def __init__(self, parent=None, game_installed=False, config=None):
-        icon_path = Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png"
+        icon_path = IMAGES / "turtle_wow_icon.png"
         self.game_installed = game_installed
         self.config = config
         super().__init__(
@@ -46,6 +46,7 @@ class SettingsDialog(BaseDialog):
         launcher_layout = QVBoxLayout(launcher_tab)
         launcher_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.create_checkbox("Disable Particles", "particles_disabled", self.config.particles_disabled, launcher_layout)
+        # TODO implement transparency toggling
         #self.create_checkbox("Disable Transparency", "transparency_disabled", self.config.transparency_disabled, launcher_layout)
         self.create_button("Open Logs Folder", self.open_logs_folder, launcher_layout)
         tab_widget.addTab(launcher_tab, "Launcher")
