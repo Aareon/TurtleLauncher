@@ -10,15 +10,12 @@ class InstallationStatusDialog(BaseDialog):
         self.status = status
         super().__init__(parent, title=title, message=message, icon_path=icon_path)
 
-        self.setup_ui(title, message, icon_path)
+        self.add_ok_button()
+        self.apply_status_styles()
 
-    def setup_ui(self, title, message, icon_path):
-        super().setup_ui(title, message, icon_path)
+    def add_ok_button(self):
         # OK button
         self.ok_button = self.create_button("OK", self.accept, self.content_layout, "ok-button")
-
-        # Apply status-specific styles
-        self.apply_status_styles()
 
     def apply_status_styles(self):
         status_color = self.get_status_color()
