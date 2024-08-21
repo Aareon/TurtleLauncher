@@ -11,7 +11,7 @@ $nsisScript = "installer.nsi"
 $iconPath = ".\assets\images\icon.ico"
 
 # Additional Nuitka flags
-$additionalNuitkaFlags = "--windows-disable-console"
+#$additionalNuitkaFlags = "--windows-disable-console"
 
 # Step 1: Compile the application using Nuitka
 Write-Host "Compiling application with Nuitka..."
