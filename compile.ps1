@@ -13,7 +13,9 @@ param (
 
     [string]$AdditionalFlags = "",
 
-    [string]$IconPath = ".\assets\images\icon.ico"
+    [string]$IconPath = ".\assets\images\icon.ico",
+
+    [switch]$EnableConsole
 )
 
 # Ensure Nuitka is installed
@@ -36,21 +38,46 @@ if ($LASTEXITCODE -ne 0) {
 # Ensure output directory exists
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
-# Check if icon file exists
-if (-not (Test-Path $IconPath)) {
-    Write-Host "Warning: Icon file not found at $IconPath. Compilation will proceed without an icon."
-    $iconFlag = ""
-} else {
-    $iconFlag = "--windows-icon-from-ico=`"$IconPath`""
+# Build the Nuitka command
+$nuitkaCommand = @(
+    "python -m nuitka",
+    "--standalone",
+    "--plugin-enable=pyside6",
+    "--output-dir=`"$OutputDir`"",
+    "--output-filename=`"$AppName.exe`""
+)
+
+if (Test-Path $IconPath) {
+    $nuitkaCommand += "--windows-icon-from-ico=`"$IconPath`""
 }
 
-# Build the Nuitka command
-$nuitkaCommand = "python -m nuitka --standalone --plugin-enable=pyside6 --output-dir=`"$OutputDir`" --output-filename=`"$AppName.exe`" $iconFlag $AdditionalFlags `"$MainPyFile`""
+# Add PySide6 specific flags
+$nuitkaCommand += @(
+    "--enable-plugin=pyside6",
+    "--include-qt-plugins=all",
+    "--include-data-dir=.\assets=assets"
+)
+
+# Add console for debugging if EnableConsole switch is present
+if ($EnableConsole) {
+    $nuitkaCommand += "--windows-disable-console"
+}
+
+# Add any additional flags
+if ($AdditionalFlags) {
+    $nuitkaCommand += $AdditionalFlags
+}
+
+# Add the main Python file at the end
+$nuitkaCommand += "`"$MainPyFile`""
+
+# Join the command parts
+$nuitkaCommandString = $nuitkaCommand -join " "
 
 # Execute Nuitka compilation
 Write-Host "Compiling $MainPyFile with Nuitka..."
-Write-Host "Command: $nuitkaCommand"
-Invoke-Expression $nuitkaCommand
+Write-Host "Command: $nuitkaCommandString"
+Invoke-Expression $nuitkaCommandString
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Nuitka compilation failed. Please check the output for errors."
