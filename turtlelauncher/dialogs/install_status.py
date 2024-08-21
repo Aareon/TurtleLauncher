@@ -1,14 +1,15 @@
 from pathlib import Path
 from turtlelauncher.dialogs.base import BaseDialog
+from turtlelauncher.utils.config import IMAGES
 
 
 class InstallationStatusDialog(BaseDialog):
     def __init__(self, parent=None, status="success", message=""):
-        icon_path = Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png"
+        icon_path = IMAGES / "turtle_wow_icon.png"
         title = "Installation Complete" if status == "success" else "Installation Status"
+        self.status = status
         super().__init__(parent, title=title, message=message, icon_path=icon_path)
 
-        self.status = status
         self.setup_ui(title, message, icon_path)
 
     def setup_ui(self, title, message, icon_path):
