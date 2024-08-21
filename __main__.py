@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication
 from turtlelauncher.windows.main_window import TurtleWoWLauncher
 from turtlelauncher.utils.config import TOOL_FOLDER
 from loguru import logger
+from turtlelauncher.__version__ import version
 
 
 def setup_logging():
@@ -45,7 +46,7 @@ def setup_logging():
 
 if __name__ == "__main__":
     setup_logging()
-    logger.info("Application starting...")
+    logger.info(f"Turtle WoW Launcher {version} starting...")
     
     app = QApplication(sys.argv)
     window = TurtleWoWLauncher()
