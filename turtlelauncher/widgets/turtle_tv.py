@@ -1,15 +1,21 @@
+import json
+
+from loguru import logger
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy, QPushButton
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import QUrl, Qt, Signal, QTimer
 from PySide6.QtGui import QPainter, QColor, QMovie
 
+from turtlelauncher.utils.config import DATA
+
+
 class TurtleTVWidget(QFrame):
     video_changed = Signal(int)  # Signal to emit when video changes
 
-    def __init__(self, video_urls):
+    def __init__(self):
         super().__init__()
         self.setFrameStyle(QFrame.NoFrame)
-        self.video_urls = video_urls
+        self.video_urls = self.load_video_data()
         self.current_index = 0
         
         self.layout = QVBoxLayout(self)
@@ -65,6 +71,17 @@ class TurtleTVWidget(QFrame):
         """)
 
         self.load_current_video()
+    
+    @staticmethod
+    def load_video_data():
+        videos = []
+        try:
+            with open(DATA / "turtletv.json") as file:
+                videos = json.load(file)["videos"]
+        except Exception:
+            logger.exception("Failed to load TurtleTV data")
+        finally:
+            return videos
 
     def paintEvent(self, event):
         painter = QPainter(self)

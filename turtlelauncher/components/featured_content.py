@@ -46,11 +46,11 @@ class FeaturedContent(QFrame):
 
         # Video Widget
         self.video_widget = None
-        if content_type in ["youtube", "turtletv"] and video_data:
-            if content_type == "youtube":
+        if content_type in ["youtube", "turtletv"]:
+            if content_type == "youtube" and video_data:
                 self.video_widget = YouTubeVideoWidget(video_data)
             elif content_type == "turtletv":
-                self.video_widget = TurtleTVWidget(video_data)
+                self.video_widget = TurtleTVWidget()
             self.stacked_widget.addWidget(self.video_widget)
 
         # Set the current widget based on content_type

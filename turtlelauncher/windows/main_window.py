@@ -235,7 +235,7 @@ class TurtleWoWLauncher(QMainWindow):
         tweets_and_featured_layout = QHBoxLayout()
         tweets_widget = TweetsFeed(DATA / "tweets.json")
         tweets_widget.image_clicked.connect(self.show_image_overlay)
-        featured_content_widget = FeaturedContent(content_type="video", video_id="FrIQy71OYtI")
+        featured_content_widget = FeaturedContent(content_type="turtletv", video_data=["https://turtle-wow.org/watch/embed/acfea246"])
         
         self.image_overlay = None
         
