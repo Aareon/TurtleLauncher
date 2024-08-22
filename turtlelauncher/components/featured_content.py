@@ -1,5 +1,5 @@
 from loguru import logger
-from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QWidget, QHBoxLayout, QPushButton
 from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
 from PySide6.QtCore import Qt, QSize, QTimer
 
@@ -19,10 +19,7 @@ class FeaturedContent(QFrame):
 
         font_filename = "FontinSans_Cyrillic_R_46b.ttf"
         font_id = QFontDatabase.addApplicationFont(str((FONTS / font_filename).absolute()))
-        if font_id != -1:
-            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        else:
-            font_family = "Arial"
+        font_family = QFontDatabase.applicationFontFamilies(font_id)[0] if font_id != -1 else "Arial"
         logger.info(f"Loaded font: {font_family}")
 
         # Title
@@ -37,10 +34,7 @@ class FeaturedContent(QFrame):
 
         # Featured Image
         self.featured_image_label = QLabel()
-        if featured_image:
-            pixmap = QPixmap(featured_image)
-        else:
-            pixmap = QPixmap(IMAGES / "feature_image.png")
+        pixmap = QPixmap(featured_image) if featured_image else QPixmap(IMAGES / "feature_image.png")
         self.featured_image_label.setPixmap(pixmap)
         self.featured_image_label.setScaledContents(True)
         self.featured_image_label.setAlignment(Qt.AlignCenter)
@@ -57,14 +51,36 @@ class FeaturedContent(QFrame):
             self.stacked_widget.addWidget(self.video_widget)
 
         # Set the current widget based on content_type
-        if content_type in ["youtube", "turtletv"] and video_data:
-            self.stacked_widget.setCurrentWidget(self.video_widget)
-        else:
-            self.stacked_widget.setCurrentWidget(self.featured_image_label)
+        self.stacked_widget.setCurrentWidget(self.video_widget if content_type in ["youtube", "turtletv"] and video_data else self.featured_image_label)
         
-        # Featured Text
-        self.featured_text_label = None
-        if featured_text is not None:
+        # Controls Widget
+        controls_widget = QWidget()
+        controls_layout = QVBoxLayout(controls_widget)
+        controls_layout.setContentsMargins(0, 10, 0, 0)
+        controls_layout.setSpacing(5)
+
+        # Navigation Buttons
+        nav_layout = QHBoxLayout()
+        self.prev_button = QPushButton("←")
+        self.next_button = QPushButton("→")
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.prev_button.clicked.connect(self.video_widget.previous_video)
+            self.next_button.clicked.connect(self.video_widget.next_video)
+        nav_layout.addWidget(self.prev_button)
+        nav_layout.addWidget(self.next_button)
+        controls_layout.addLayout(nav_layout)
+
+        # Video Description
+        self.description = QLabel()
+        self.description.setWordWrap(True)
+        self.description.setAlignment(Qt.AlignCenter)
+        self.description.setStyleSheet("font-family: Arial; font-size: 11px; color: #CCCCCC;")
+        controls_layout.addWidget(self.description)
+
+        self.layout.addWidget(controls_widget)
+
+        # Featured Text and Attribution (if provided)
+        if featured_text:
             self.featured_text_label = QLabel(featured_text)
             self.featured_text_label.setWordWrap(True)
             self.featured_text_label.setAlignment(Qt.AlignCenter)
@@ -72,9 +88,7 @@ class FeaturedContent(QFrame):
             self.featured_text_label.setStyleSheet("color: #CCCCCC;")
             self.layout.addWidget(self.featured_text_label)
         
-        # Attribution Text
-        self.attribution_label = None
-        if attribution is not None:
+        if attribution:
             self.attribution_label = QLabel(attribution)
             self.attribution_label.setAlignment(Qt.AlignCenter)
             self.attribution_label.setFont(QFont("Arial", 8))
@@ -85,13 +99,36 @@ class FeaturedContent(QFrame):
             QLabel {
                 background-color: transparent;
             }
+            QPushButton {
+                background-color: #4a0e4e;
+                color: #FFD700;
+                border: 2px solid #FF69B4;
+                padding: 5px 10px;
+                border-radius: 5px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #6a1a6e;
+                border-color: #FFD700;
+            }
         """)
 
-        # Set up a timer to check for window size changes
         self.resize_timer = QTimer(self)
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self.adjust_layout)
         self.last_width = self.width()
+
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.video_widget.video_changed.connect(self.update_description)
+
+    def update_description(self, index):
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.description.setText(self.video_widget.videos[index]["title"])
+    
+    def update_description(self, index):
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.description.setText(self.video_widget.videos[index]["title"])
 
     def paintEvent(self, event):
         painter = QPainter(self)

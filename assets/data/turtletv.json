@@ -1,10 +1,12 @@
 {
     "videos": [
-        "https://turtle-wow.org/watch/embed/acfea246",
-        "https://turtle-wow.org/watch/embed/8773c31d",
-        "https://turtle-wow.org/watch/embed/d169db12",
-        "https://turtle-wow.org/watch/embed/e503f89f",
-        "https://turtle-wow.org/watch/embed/62844b89",
-        "https://turtle-wow.org/watch/embed/4765594c"
+        {"url": "https://turtle-wow.org/watch/embed/acfea246", "title": "Remastered Client - Unreal Engine 5"},
+        {"url": "https://turtle-wow.org/watch/embed/c0edfd95", "title": "Shellcoin - Turning Peons Into Warchiefs!"},
+        {"url": "https://turtle-wow.org/watch/embed/b2985b74", "title": "Welcome to Turtle WoW"},
+        {"url": "https://turtle-wow.org/watch/embed/8773c31d", "title": "Patch 1.17.1 - Labor and Legacy"},
+        {"url": "https://turtle-wow.org/watch/embed/d169db12", "title": "Patch 1.17.0 - Beyond the Greymane Wall"},
+        {"url": "https://turtle-wow.org/watch/embed/4765594c", "title": "Patch 1.16.5 - Anchor's Fall"},
+        {"url": "https://turtle-wow.org/watch/embed/62844b89", "title": "Patch 1.16.0 - Mysteries of Azeroth"},
+        {"url": "https://turtle-wow.org/watch/embed/e503f89f", "title": "Patch 1.15.0 - Announcement Trailer"}
     ]
 }
