@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QGraphicsView, QGraphicsScene, QHBoxLayout
-from PySide6.QtGui import QPixmap, QPainter, QColor, QWheelEvent, QCursor, QTransform
-from PySide6.QtCore import Qt, QRectF, Signal, QPointF, QSize
+from PySide6.QtGui import QPainter, QWheelEvent, QTransform
+from PySide6.QtCore import Qt, Signal
 
 class ZoomableGraphicsView(QGraphicsView):
     def __init__(self, parent=None):
@@ -40,35 +40,8 @@ class ImageOverlay(QWidget):
         self.setStyleSheet("background: rgba(0, 0, 0, 180);")
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-
-        # Top bar for close button
-        top_bar = QWidget()
-        top_bar.setStyleSheet("background: transparent;")
-        top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-
-        close_button = QPushButton("×")
-        close_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(0, 0, 0, 0.5);
-                color: white;
-                border: none;
-                font-size: 24px;
-                padding: 5px;
-                width: 30px;
-                height: 30px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 0, 0, 0.7);
-            }
-        """)
-        close_button.clicked.connect(self.close)
-        top_layout.addStretch()
-        top_layout.addWidget(close_button)
-
-        main_layout.addWidget(top_bar)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
         # GraphicsView for the image
         self.view = ZoomableGraphicsView()
@@ -80,6 +53,46 @@ class ImageOverlay(QWidget):
 
         main_layout.addWidget(self.view)
 
+        # Close button
+        self.close_button = QPushButton("Close", self)
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(218, 0, 255, 0.7);
+                color: white;
+                border: 2px solid white;
+                border-radius: 15px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px 15px;
+                min-width: 80px;
+                min-height: 30px;
+            }
+            QPushButton:hover {
+                background-color: rgba(161, 0, 188, 0.9);
+                border-color: #f0f0f0;
+            }
+            QPushButton:pressed {
+                background-color: rgba(128, 0, 150, 1.0);
+            }
+        """)
+        self.close_button.clicked.connect(self.close)
+
+        # Position the close button
+        self.position_close_button()
+
+        # Connect the view's resize event to reposition the button
+        self.view.resizeEvent = self.custom_resize_event
+
+    def position_close_button(self):
+        button_margin = 10
+        button_x = (self.view.width() - self.close_button.width()) // 2
+        self.close_button.move(button_x, button_margin)
+
+    def custom_resize_event(self, event):
+        super(ZoomableGraphicsView, self.view).resizeEvent(event)
+        self.position_close_button()
+        self.fit_image_in_view()
+
     def showEvent(self, event):
         super().showEvent(event)
         self.fit_image_in_view()
@@ -87,6 +100,7 @@ class ImageOverlay(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.fit_image_in_view()
+        self.position_close_button()
 
     def fit_image_in_view(self):
         view_size = self.view.viewport().size()
