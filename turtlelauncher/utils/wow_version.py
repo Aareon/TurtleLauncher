@@ -12,7 +12,7 @@ class ExeVersionExtractor:
     BETA_PATTERN = b'BETA_BUILD'
 
     @staticmethod
-    def extract_version_info(file_path: str) -> Optional[VersionInfo]:
+    def extract_version_info(file_path: str, show_beta: bool = False) -> Optional[VersionInfo]:
         try:
             with open(file_path, 'rb') as file:
                 content = file.read()
@@ -22,7 +22,7 @@ class ExeVersionExtractor:
             if match:
                 build_number = match.group(1).decode('ascii')
                 version_number = match.group(2).decode('ascii')
-                is_beta = ExeVersionExtractor.BETA_PATTERN in content[match.end():match.end()+20]
+                is_beta = ExeVersionExtractor.BETA_PATTERN in content[match.end():match.end()+20] if show_beta else ""
                 
                 return VersionInfo(build_number, version_number, is_beta)
             

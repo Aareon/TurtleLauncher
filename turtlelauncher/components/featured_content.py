@@ -1,12 +1,12 @@
-from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget
+from loguru import logger
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QWidget
 from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.yt_video import YouTubeVideoWidget
 from turtlelauncher.widgets.turtle_tv import TurtleTVWidget
 from turtlelauncher.utils.config import FONTS, IMAGES
-
 
 class FeaturedContent(QFrame):
     def __init__(self, content_type="image", video_data=None, featured_text=None, featured_image=None, attribution=None):
@@ -23,16 +23,17 @@ class FeaturedContent(QFrame):
             font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
         else:
             font_family = "Arial"
+        logger.info(f"Loaded font: {font_family}")
 
         # Title
-        title = GradientLabel("Featured Content", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
-        title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont(font_family, 16, QFont.Bold))
-        self.layout.addWidget(title)
+        self.title = GradientLabel("Featured Content", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setFont(QFont(font_family, 16, QFont.Bold))
+        self.layout.addWidget(self.title)
         
         # Stacked Widget to switch between image and video
         self.stacked_widget = QStackedWidget()
-        self.layout.addWidget(self.stacked_widget)
+        self.layout.addWidget(self.stacked_widget, 1)  # Give it a stretch factor of 1
 
         # Featured Image
         self.featured_image_label = QLabel()
@@ -40,7 +41,8 @@ class FeaturedContent(QFrame):
             pixmap = QPixmap(featured_image)
         else:
             pixmap = QPixmap(IMAGES / "feature_image.png")
-        self.featured_image_label.setPixmap(pixmap.scaled(QSize(630, 353), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.featured_image_label.setPixmap(pixmap)
+        self.featured_image_label.setScaledContents(True)
         self.featured_image_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(self.featured_image_label)
 
@@ -51,6 +53,7 @@ class FeaturedContent(QFrame):
                 self.video_widget = YouTubeVideoWidget(video_data)
             elif content_type == "turtletv":
                 self.video_widget = TurtleTVWidget()
+                self.title.setText("Turtle TV")
             self.stacked_widget.addWidget(self.video_widget)
 
         # Set the current widget based on content_type
@@ -84,8 +87,11 @@ class FeaturedContent(QFrame):
             }
         """)
 
-        # Add stretch to push content to the top
-        self.layout.addStretch()
+        # Set up a timer to check for window size changes
+        self.resize_timer = QTimer(self)
+        self.resize_timer.setSingleShot(True)
+        self.resize_timer.timeout.connect(self.adjust_layout)
+        self.last_width = self.width()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -108,9 +114,6 @@ class FeaturedContent(QFrame):
                 self.featured_text_label.hide()
             if self.attribution_label:
                 self.attribution_label.hide()
-            
-            # Expand video to fill the space
-            self.video_widget.setFixedHeight(self.height() - 60)  # Adjust for padding
         else:
             # Restore original layout
             if self.featured_text_label:
@@ -119,16 +122,54 @@ class FeaturedContent(QFrame):
             if self.attribution_label:
                 self.layout.addWidget(self.attribution_label)
                 self.attribution_label.show()
-            
-            # Reset video size
-            if self.video_widget:
-                self.video_widget.setFixedHeight(353)  # Original height
 
-        # Update layout
-        self.layout.update()
+        self.adjust_layout()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Update video size when window is resized
-        if self.video_widget and self.window().isFullScreen():
-            self.video_widget.setFixedHeight(self.height() - 60)
+        # Start the timer to adjust layout after resizing stops
+        self.resize_timer.start(200)  # 200ms delay
+
+    def adjust_layout(self):
+        window = self.window()
+        if window:
+            window_width = window.width()
+            window_height = window.height()
+            is_maximized = window.isMaximized()
+
+            if is_maximized:
+                # Allow full width when maximized
+                self.setMaximumWidth(16777215)  # QWIDGETSIZE_MAX
+                max_height = window_height - 100  # Adjust as needed for other UI elements
+            else:
+                # Set width to 60% of window width when not maximized
+                max_width = min(window_width * 0.6, 1000)  # Cap at 1000px
+                self.setMaximumWidth(int(max_width))
+                max_height = window_height - 150  # More space for other elements when not maximized
+
+            # Calculate the maximum content size while maintaining aspect ratio
+            content_width = self.width() - 30  # Accounting for margins
+            content_height = int(content_width * 9 / 16)  # 16:9 aspect ratio
+
+            if content_height > max_height:
+                content_height = max_height
+                content_width = int(content_height * 16 / 9)
+
+            content_size = QSize(content_width, content_height)
+
+            # Adjust content size
+            if self.featured_image_label.pixmap():
+                self.featured_image_label.setPixmap(self.featured_image_label.pixmap().scaled(
+                    content_size,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                ))
+            if self.video_widget:
+                self.video_widget.setFixedSize(content_size)
+
+            # Adjust title font size
+            title_font = self.title.font()
+            title_font.setPointSize(max(12, min(16, int(content_width / 30))))
+            self.title.setFont(title_font)
+
+        self.update()
