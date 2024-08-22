@@ -1,6 +1,6 @@
 from turtlelauncher.dialogs.base import BaseDialog
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from loguru import logger
 from turtlelauncher.utils.config import TOOL_FOLDER, IMAGES
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
@@ -46,10 +46,19 @@ class SettingsDialog(BaseDialog):
         launcher_layout = QVBoxLayout(launcher_tab)
         launcher_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.create_checkbox("Disable Particles", "particles_disabled", self.config.particles_disabled, launcher_layout)
+        self.create_checkbox("Clear Cache On Launch", "clear_cache_on_launch", False, launcher_layout)
         # TODO implement transparency toggling
         #self.create_checkbox("Disable Transparency", "transparency_disabled", self.config.transparency_disabled, launcher_layout)
         self.create_button("Open Logs Folder", self.open_logs_folder, launcher_layout)
         tab_widget.addTab(launcher_tab, "Launcher")
+        
+        # Fixes Tab
+        fixes_tab = QWidget()
+        fixes_layout = QVBoxLayout(fixes_tab)
+        fixes_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.create_checkbox("Fix Black Screen", "black_screen_fix", False, fixes_layout)
+        self.create_checkbox("Fix VanillaTweaks Alt-Tab", "vanilla_tweaks_alt_tab_fix", False, fixes_layout)
+        tab_widget.addTab(fixes_tab, "Fixes")
 
         self.update_button_states()
 
@@ -199,11 +208,23 @@ class SettingsDialog(BaseDialog):
         except Exception as e:
             logger.error(f"Error opening logs folder: {str(e)}")
             self.show_error_dialog("Error", f"An error occurred while opening the logs folder: {str(e)}")
+    
+    def fix_black_screen(self):
+        logger.debug("Fixing black screen")
+        self.show_warning_dialog("Not Implemented", "This feature is not implemented yet.")
+
+    def fix_vanilla_tweaks_alt_tab(self):
+        logger.debug("Fixing VanillaTweaks Alt-Tab")
+        self.show_warning_dialog("Not Implemented", "This feature is not implemented yet.")
+    
+    def sizeHint(self):
+        return QSize(400, 500) # Set the initial size of the dialog
 
     def showEvent(self, event):
         super().showEvent(event)
         self.set_setting("particles_disabled", self.config.particles_disabled)
         self.set_setting("transparency_disabled", self.config.transparency_disabled)
+        self.adjustSize()  # Adjust the size of the dialog to fit its contents
 
     def closeEvent(self, event):
         self.save_settings()
