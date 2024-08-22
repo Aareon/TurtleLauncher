@@ -6,7 +6,7 @@ from loguru import logger
 from PIL.ImageQt import ImageQt
 
 from turtlelauncher.dialogs.base import BaseDialog
-from turtlelauncher.utils.get_exe_icon import get_exe_icon
+from turtlelauncher.utils.game_utils import get_exe_icon
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
