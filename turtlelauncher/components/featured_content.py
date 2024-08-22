@@ -2,18 +2,14 @@ from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget
 from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
 from PySide6.QtCore import Qt, QSize
 
-from pathlib import Path
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.yt_video import YouTubeVideoWidget
+from turtlelauncher.widgets.turtle_tv import TurtleTVWidget
+from turtlelauncher.utils.config import FONTS, IMAGES
 
-HERE = Path(__file__).parent
-ASSETS = HERE.parent.parent / "assets"
-DATA = HERE / "data"
-IMAGES = ASSETS / "images"
-FONTS = ASSETS / "fonts"
 
 class FeaturedContent(QFrame):
-    def __init__(self, content_type="image", video_id=None, featured_text=None, featured_image=None, attribution=None):
+    def __init__(self, content_type="image", video_data=None, featured_text=None, featured_image=None, attribution=None):
         super().__init__()
         self.setFrameStyle(QFrame.NoFrame)
         
@@ -48,15 +44,18 @@ class FeaturedContent(QFrame):
         self.featured_image_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(self.featured_image_label)
 
-        # YouTube Video
-        self.youtube_widget = None
-        if video_id:
-            self.youtube_widget = YouTubeVideoWidget(video_id)
-            self.stacked_widget.addWidget(self.youtube_widget)
+        # Video Widget
+        self.video_widget = None
+        if content_type in ["youtube", "turtletv"] and video_data:
+            if content_type == "youtube":
+                self.video_widget = YouTubeVideoWidget(video_data)
+            elif content_type == "turtletv":
+                self.video_widget = TurtleTVWidget(video_data)
+            self.stacked_widget.addWidget(self.video_widget)
 
         # Set the current widget based on content_type
-        if content_type == "video" and video_id:
-            self.stacked_widget.setCurrentWidget(self.youtube_widget)
+        if content_type in ["youtube", "turtletv"] and video_data:
+            self.stacked_widget.setCurrentWidget(self.video_widget)
         else:
             self.stacked_widget.setCurrentWidget(self.featured_image_label)
         
@@ -101,7 +100,7 @@ class FeaturedContent(QFrame):
         super().paintEvent(event)
 
     def set_fullscreen(self, is_fullscreen):
-        if is_fullscreen and self.youtube_widget:
+        if is_fullscreen and self.video_widget:
             # Remove other widgets
             self.layout.removeWidget(self.featured_text_label)
             self.layout.removeWidget(self.attribution_label)
@@ -111,7 +110,7 @@ class FeaturedContent(QFrame):
                 self.attribution_label.hide()
             
             # Expand video to fill the space
-            self.youtube_widget.setFixedHeight(self.height() - 60)  # Adjust for padding
+            self.video_widget.setFixedHeight(self.height() - 60)  # Adjust for padding
         else:
             # Restore original layout
             if self.featured_text_label:
@@ -122,8 +121,8 @@ class FeaturedContent(QFrame):
                 self.attribution_label.show()
             
             # Reset video size
-            if self.youtube_widget:
-                self.youtube_widget.setFixedHeight(353)  # Original height
+            if self.video_widget:
+                self.video_widget.setFixedHeight(353)  # Original height
 
         # Update layout
         self.layout.update()
@@ -131,5 +130,5 @@ class FeaturedContent(QFrame):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # Update video size when window is resized
-        if self.youtube_widget and self.window().isFullScreen():
-            self.youtube_widget.setFixedHeight(self.height() - 60)
+        if self.video_widget and self.window().isFullScreen():
+            self.video_widget.setFixedHeight(self.height() - 60)
