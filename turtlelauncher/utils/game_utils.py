@@ -2,11 +2,12 @@ from pathlib import Path
 from loguru import logger
 from turtlelauncher.utils.get_file_version import get_file_version
 from turtlelauncher.utils.config import Config  # Only needed for type hinting
+from turtlelauncher.utils.wow_version import ExeVersionExtractor
 
 
 def check_game_installation(game_install_dir: Path | str, selected_binary: Path | str):
     logger.info("Checking game installation")
-    if game_install_dir is None:
+    if not game_install_dir:
         logger.debug("No game installation directory set in config")
         return False
     
@@ -38,16 +39,29 @@ def check_game_installation(game_install_dir: Path | str, selected_binary: Path 
 def get_game_version(game_install_dir: Path | str):
     exe_path = Path(game_install_dir) / "WoW.exe"
     logger.debug(f"Attempting to get version for: {exe_path}")
+    
     if exe_path.exists():
-        version = get_file_version(str(exe_path))
-        if version:
-            logger.debug(f"WoW.exe version: {version}")
-            return version
-        else:
-            logger.warning("Failed to retrieve WoW.exe version")
-    else:
-        logger.warning(f"WoW.exe not found at {exe_path}")
-    return None
+        try:
+            version_info = ExeVersionExtractor.extract_version_info(str(exe_path))
+            if version_info:
+                version_str = f"Build {version_info.build_number} - v{version_info.version_number}"
+                if version_info.is_beta:
+                    version_str += " (Beta)"
+                logger.debug(f"Extracted version: {version_str}")
+                return version_str
+            elif version_info is None:
+                version = get_file_version(str(exe_path))
+                if version:
+                    logger.debug(f"WoW.exe version: {version}")
+                    return version
+                else:
+                    logger.warning("Failed to retrieve WoW.exe version")
+            else:
+                logger.warning(f"WoW.exe not found at {exe_path}")
+            return None
+        except Exception as e:
+            logger.exception(f"An error occurred while extracting version info: {str(e)}")
+            return None
 
 
 def update_game_install_dir(extracted_folder: Path | str, config: Config):
