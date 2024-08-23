@@ -70,12 +70,12 @@ class FeaturedContent(QFrame):
         nav_layout.addWidget(self.next_button)
         controls_layout.addLayout(nav_layout)
 
-        # Video Description
-        self.description = QLabel()
-        self.description.setWordWrap(True)
-        self.description.setAlignment(Qt.AlignCenter)
-        self.description.setStyleSheet("font-family: Arial; font-size: 11px; color: #CCCCCC;")
-        controls_layout.addWidget(self.description)
+        # Video Title
+        self.title_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.title_label.setStyleSheet("background-color: transparent;")
+        self.layout.addWidget(self.title_label)
 
         self.layout.addWidget(controls_widget)
 
@@ -128,7 +128,8 @@ class FeaturedContent(QFrame):
     
     def update_description(self, index):
         if isinstance(self.video_widget, TurtleTVWidget):
-            self.description.setText(self.video_widget.videos[index]["title"])
+            #self.description.setText(self.video_widget.videos[index]["title"])
+            pass
 
     def paintEvent(self, event):
         painter = QPainter(self)
