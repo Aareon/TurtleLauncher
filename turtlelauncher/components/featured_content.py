@@ -76,6 +76,7 @@ class FeaturedContent(QFrame):
         self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
         self.title_label.setStyleSheet("background-color: transparent;")
         self.layout.addWidget(self.title_label)
+        self.update_description(self.video_widget.current_index)
 
         self.layout.addWidget(controls_widget)
 
@@ -124,12 +125,7 @@ class FeaturedContent(QFrame):
 
     def update_description(self, index):
         if isinstance(self.video_widget, TurtleTVWidget):
-            self.description.setText(self.video_widget.videos[index]["title"])
-    
-    def update_description(self, index):
-        if isinstance(self.video_widget, TurtleTVWidget):
-            #self.description.setText(self.video_widget.videos[index]["title"])
-            pass
+            self.title_label.setText(self.video_widget.videos[index]["title"])
 
     def paintEvent(self, event):
         painter = QPainter(self)
