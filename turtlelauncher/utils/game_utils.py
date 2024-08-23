@@ -115,7 +115,7 @@ def get_game_version(game_install_dir: Path | str):
         try:
             version_info = ExeVersionExtractor.extract_version_info(str(exe_path))
             if version_info:
-                version_str = f"Build {version_info.build_number} - v{version_info.version_number}"
+                version_str = f"{version_info.version_number} - Build {version_info.build_number}"
                 if version_info.is_beta:
                     version_str += " (Beta)"
                 logger.debug(f"Extracted version: {version_str}")

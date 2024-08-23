@@ -3,8 +3,8 @@ from typing import Optional, NamedTuple
 from loguru import logger
 
 class VersionInfo(NamedTuple):
-    build_number: str
     version_number: str
+    build_number: str
     is_beta: bool
 
 class ExeVersionExtractor:
@@ -24,7 +24,7 @@ class ExeVersionExtractor:
                 version_number = match.group(2).decode('ascii')
                 is_beta = ExeVersionExtractor.BETA_PATTERN in content[match.end():match.end()+20] if show_beta else ""
                 
-                return VersionInfo(build_number, version_number, is_beta)
+                return VersionInfo(version_number, build_number, is_beta)
             
             return None
         except Exception as e:
