@@ -7,6 +7,7 @@ from turtlelauncher.utils.game_utils import clear_cache
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
 from turtlelauncher.dialogs.error import ErrorDialog
+from turtlelauncher.dialogs import show_error_dialog, show_success_dialog, show_warning_dialog
 from pathlib import Path
 import os
 import shutil
@@ -17,6 +18,7 @@ class SettingsDialog(BaseDialog):
     particles_setting_changed = Signal(bool)
     transparency_setting_changed = Signal(bool)
     minimize_on_launch_changed = Signal(bool)
+    clear_cache_on_launch_changed = Signal(bool)
 
     def __init__(self, parent=None, game_installed=False, config=None):
         icon_path = IMAGES / "turtle_wow_icon.png"
@@ -51,7 +53,7 @@ class SettingsDialog(BaseDialog):
         launcher_layout = QVBoxLayout(launcher_tab)
         launcher_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.create_checkbox("Disable Particles", "particles_disabled", self.config.particles_disabled, launcher_layout)
-        self.create_checkbox("Clear Cache On Launch", "clear_cache_on_launch", False, launcher_layout)
+        self.create_checkbox("Clear Cache On Launch", "clear_cache_on_launch", self.config.clear_cache_on_launch, launcher_layout)
         self.create_checkbox("Minimize Launcher on Game Launch", "minimize_on_launch", self.config.minimize_on_launch, launcher_layout)
         # TODO implement transparency toggling
         #self.create_checkbox("Disable Transparency", "transparency_disabled", self.config.transparency_disabled, launcher_layout)
@@ -108,7 +110,7 @@ class SettingsDialog(BaseDialog):
             if wtf_path.exists():
                 if not any(wtf_path.iterdir()):
                     logger.warning("WTF folder is empty")
-                    self.show_warning_dialog("Warning", "The WTF folder is already empty. No addon settings to clear.")
+                    show_warning_dialog("Warning", "The WTF folder is already empty. No addon settings to clear.")
                     return
 
                 try:
@@ -118,13 +120,13 @@ class SettingsDialog(BaseDialog):
                         elif item.is_dir():
                             shutil.rmtree(item)
                     logger.info("Successfully cleared addon settings")
-                    self.show_success_dialog("Success", "Addon settings have been cleared successfully.")
+                    show_success_dialog("Success", "Addon settings have been cleared successfully.")
                 except Exception as e:
                     logger.error(f"Error clearing addon settings: {str(e)}")
-                    self.show_error_dialog("Error", f"An error occurred while clearing addon settings: {str(e)}")
+                    show_error_dialog("Error", f"An error occurred while clearing addon settings: {str(e)}")
             else:
                 logger.warning("WTF folder not found in the game installation directory")
-                self.show_warning_dialog("Warning", "WTF folder not found in the game installation directory.")
+                show_warning_dialog("Warning", "WTF folder not found in the game installation directory.")
         else:
             logger.debug("Addon settings clearing cancelled by user")
 
@@ -153,11 +155,11 @@ class SettingsDialog(BaseDialog):
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
             kind, message = clear_cache(self.config.game_install_dir)
             if kind == "warning":
-                self.show_warning_dialog("Warning", message)
+                show_warning_dialog("Warning", message)
             elif kind == "success":
-                self.show_success_dialog("Success", message)
+                show_success_dialog("Success", message)
             elif kind == "error":
-                self.show_error_dialog("Error", message)
+                show_error_dialog("Error", message)
         else:
             logger.debug("Cache clearing cancelled by user")
 
@@ -198,7 +200,7 @@ class SettingsDialog(BaseDialog):
             QTimer.singleShot(100, self.restore_top_hint)
         except Exception as e:
             logger.error(f"Error opening logs folder: {str(e)}")
-            self.show_error_dialog("Error", f"An error occurred while opening the logs folder: {str(e)}")
+            show_error_dialog("Error", f"An error occurred while opening the logs folder: {str(e)}")
     
     def fix_black_screen(self):
         logger.debug("Fixing black screen")
@@ -241,11 +243,11 @@ class SettingsDialog(BaseDialog):
                 with open(config_wtf_path, 'w') as file:
                     file.writelines(lines)
                 logger.info("Successfully applied Black Screen fix")
-                self.show_success_dialog("Success", "Black Screen fix has been applied successfully.")
+                show_success_dialog("Success", "Black Screen fix has been applied successfully.")
                 self.black_screen_fix_changed.emit(True)
             else:
                 logger.info("Black Screen fix was already applied")
-                self.show_warning_dialog("Info", "Black Screen fix was already applied. No changes were needed.")
+                show_warning_dialog("Info", "Black Screen fix was already applied. No changes were needed.")
 
         except Exception as e:
             error_message = f"An error occurred while applying Black Screen fix: {str(e)}"
@@ -291,7 +293,7 @@ class SettingsDialog(BaseDialog):
                 with open(dxvk_conf_path, 'w') as file:
                     file.writelines(dxvk_lines)
                 logger.info("Successfully applied VanillaTweaks Alt-Tab fix")
-                self.show_success_dialog("Success", "VanillaTweaks Alt-Tab fix has been applied successfully.")
+                show_success_dialog("Success", "VanillaTweaks Alt-Tab fix has been applied successfully.")
             else:
                 logger.info("VanillaTweaks Alt-Tab fix was already applied")
                 ErrorDialog(self, title="Info", message="VanillaTweaks Alt-Tab fix was already applied. No changes were needed.").exec()
@@ -323,11 +325,14 @@ class SettingsDialog(BaseDialog):
             self.transparency_setting_changed.emit(state)
         elif setting_name == "minimize_on_launch":
             self.minimize_on_launch_changed.emit(state)
+        elif setting_name == "clear_cache_on_launch":
+            self.clear_cache_on_launch_changed.emit(state)
 
     def save_settings(self):
         particles_checked = self.get_setting("particles_disabled")
         transparency_checked = self.get_setting("transparency_disabled")
         minimize_on_launch_checked = self.get_setting("minimize_on_launch")
+        clear_cache_on_launch_checked = self.get_setting("clear_cache_on_launch")
 
         if particles_checked != self.config.particles_disabled:
             logger.debug(f"Saving particles setting: {particles_checked}")
@@ -343,42 +348,11 @@ class SettingsDialog(BaseDialog):
             logger.debug(f"Saving minimize on launch setting: {minimize_on_launch_checked}")
             self.config.minimize_on_launch = minimize_on_launch_checked
             self.minimize_on_launch_changed.emit(minimize_on_launch_checked)
+        
+        if clear_cache_on_launch_checked != self.config.clear_cache_on_launch:
+            logger.debug(f"Saving clear cache on launch setting: {clear_cache_on_launch_checked}")
+            self.config.clear_cache_on_launch = clear_cache_on_launch_checked
+            self.clear_cache_on_launch_changed.emit(clear_cache_on_launch_checked)
 
         self.config.save()
         logger.info("Settings saved successfully")
-
-    def show_warning_dialog(self, title, message):
-        custom_styles = {
-            "#content-widget": {
-                "border": "2px solid #FF8C00"
-            }
-        }
-        GenericConfirmationDialog(
-            self, title=title, message=message, confirm_text="OK", cancel_text="",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
-            custom_styles=custom_styles
-        ).exec()
-
-    def show_success_dialog(self, title, message):
-        custom_styles = {
-            "#content-widget": {
-                "border": "2px solid #45a049"
-            }
-        }
-        GenericConfirmationDialog(
-            self, title=title, message=message, confirm_text="OK", cancel_text="",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
-            custom_styles=custom_styles
-        ).exec()
-
-    def show_error_dialog(self, title, message):
-        custom_styles = {
-            "#content-widget": {
-                "border": "2px solid #F44336"
-            }
-        }
-        GenericConfirmationDialog(
-            self, title=title, message=message, confirm_text="OK", cancel_text="",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
-            custom_styles=custom_styles
-        ).exec()
