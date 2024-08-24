@@ -7,15 +7,16 @@ from turtlelauncher.widgets.image_button import ImageButton
 from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
 from turtlelauncher.utils.config import FONTS
+from turtlelauncher.utils.game_utils import clear_cache
 from loguru import logger
 import subprocess
 import sys
 import os
 
+from turtlelauncher.dialogs import show_error_dialog
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.game_launch import GameLaunchDialog
-from turtlelauncher.dialogs.error import ErrorDialog
 
 
 class LauncherWidget(QWidget):
@@ -363,7 +364,9 @@ class LauncherWidget(QWidget):
                     if stderr:
                         error_message += f"Error output: {stderr.decode('utf-8', errors='replace')}"
                     logger.error(error_message)
-                    self.show_error_dialog("Game Execution Error", error_message)
+                    if self.game_launch_dialog:
+                        self.game_launch_dialog.close()
+                    show_error_dialog("Game Execution Error", error_message)
                 else:
                     logger.info("Game process has ended normally")
 
@@ -372,14 +375,6 @@ class LauncherWidget(QWidget):
     @Slot()
     def on_launch_completed(self):
         logger.info("Game launch completed")
-        # You can add any post-launch logic here if needed
-    
-    def show_error_dialog(self, title, message):
-        if self.game_launch_dialog:
-            self.game_launch_dialog.close()
-        detailed_message = f"{message}\n\nSelected binary: {self.config.selected_binary}\nPlease ensure the file exists and you have the necessary permissions to run it."
-        error_dialog = ErrorDialog(self, title, detailed_message)
-        error_dialog.exec()
     
     def validate_selected_binary(self):
         if self.config.selected_binary:
@@ -388,24 +383,30 @@ class LauncherWidget(QWidget):
                 if not binary_path.exists():
                     logger.warning(f"Selected binary no longer exists: {binary_path}")
                     self.config.selected_binary = None
-                    self.show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+                    if self.game_launch_dialog:
+                        self.game_launch_dialog.close()
+                    show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
                     return False
                 
                 if not os.access(binary_path, os.R_OK):
                     logger.warning(f"Selected binary is not readable: {binary_path}")
-                    self.show_error_dialog("Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
+                    if self.game_launch_dialog:
+                        self.game_launch_dialog.close()
+                    show_error_dialog("Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
                     return False
                 
                 if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
                     logger.warning(f"Selected binary is not executable: {binary_path}")
-                    self.show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
+                    if self.game_launch_dialog:
+                        self.game_launch_dialog.close()
+                    show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
                     return False
                 
                 logger.info(f"Selected binary is valid: {binary_path}")
                 return True
             except Exception as e:
                 logger.error(f"Error validating binary: {e}")
-                self.show_error_dialog("Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
+                show_error_dialog("Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
                 return False
         else:
             logger.info("No binary currently selected")
@@ -414,8 +415,28 @@ class LauncherWidget(QWidget):
     def execute_selected_binary(self):
         if not self.config.selected_binary:
             logger.warning("No binary selected for execution")
-            self.show_error_dialog("Execution Error", "No game binary has been selected. Please select a binary first.")
+            if self.game_launch_dialog:
+                self.game_launch_dialog.close()
+            show_error_dialog("Execution Error", "No game binary has been selected. Please select a binary first.")
             return
+        
+        logger.info(f"Should clear cache on launch: {self.config.clear_cache_on_launch}")
+        if self.config.clear_cache_on_launch:
+            logger.info("Clearing cache before launching game")
+            result_kind, message = clear_cache(self.config.game_install_dir)
+            if result_kind == "success":
+                logger.info("Cache cleared successfully")
+            elif result_kind == "warning":
+                logger.warning(f"Cache already empty: {message}")
+                if self.game_launch_dialog:
+                    self.game_launch_dialog.close()
+                show_error_dialog("Cache Clear Warning", f"Cache is already empty: {message}")
+            elif result_kind == "error":
+                logger.error(f"Failed to clear cache: {message}")
+                if self.game_launch_dialog:
+                    self.game_launch_dialog.close()
+                show_error_dialog("Cache Clear Error", f"Failed to clear the cache: {message}")
+                return
 
         binary_path = Path(self.config.selected_binary)
         
@@ -464,7 +485,7 @@ class LauncherWidget(QWidget):
             logger.error(error_message, exc_info=True)
             if self.game_launch_dialog:
                 self.game_launch_dialog.close()
-            self.show_error_dialog("Execution Error", error_message)
+            show_error_dialog("Execution Error", error_message)
     
     @Slot(str)
     def on_binary_selected(self, selected_binary):
