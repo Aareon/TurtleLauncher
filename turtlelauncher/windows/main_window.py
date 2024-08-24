@@ -208,12 +208,6 @@ class TurtleWoWLauncher(QMainWindow):
         # Ensure the dialog is deleted and the main window is updated
         self.install_dir_dialog.deleteLater()
         self.update()
-    
-    def launch_game(self):
-        # Implement game launching logic here
-        logger.info("Launching the game")
-        # For now, just show a message box
-        QMessageBox.information(self, "Launch Game", "Game launching functionality not implemented yet.")
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -393,6 +387,7 @@ class TurtleWoWLauncher(QMainWindow):
         logger.debug("Main window shown")
     
     def closeEvent(self, event):
+        # TODO - This doesn't work as expected
         if self.download_utility.is_downloading:
             reply = QMessageBox.question(
                 self, 'Exit Confirmation',
