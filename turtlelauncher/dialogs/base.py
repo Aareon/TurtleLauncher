@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout, QCheckBox, QApplication
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, QPoint, Signal
+from PySide6.QtCore import Qt, QPoint, Signal, QRect
 from pathlib import Path
 from loguru import logger
 from turtlelauncher.widgets.tabs import CustomTabWidget
@@ -14,7 +14,7 @@ class BaseDialog(QDialog):
         self.setWindowTitle(title)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setModal(modal)
-        self.parent = parent
+        self.master = parent
 
         self.dragging = False
         self.drag_position = QPoint()
@@ -216,26 +216,48 @@ class BaseDialog(QDialog):
         super().showEvent(event)
         logger.debug(f"{self.__class__.__name__} showEvent triggered")
         self.center_on_parent()
+    
+    def ensure_on_screen(self, dialog_geometry: QRect, screen_geometry: QRect) -> QRect:
+        """Ensure the dialog is fully visible on the screen."""
+        if not screen_geometry.contains(dialog_geometry):
+            # Left edge
+            if dialog_geometry.left() < screen_geometry.left():
+                dialog_geometry.moveLeft(screen_geometry.left())
+            # Right edge
+            if dialog_geometry.right() > screen_geometry.right():
+                dialog_geometry.moveRight(screen_geometry.right())
+            # Top edge
+            if dialog_geometry.top() < screen_geometry.top():
+                dialog_geometry.moveTop(screen_geometry.top())
+            # Bottom edge
+            if dialog_geometry.bottom() > screen_geometry.bottom():
+                dialog_geometry.moveBottom(screen_geometry.bottom())
+        return dialog_geometry
 
     def center_on_parent(self):
-        if self.parent is not None and isinstance(self.parent, QWidget):
-            parent_rect = self.parent.rect()
-            self_rect = self.rect()
-            
-            new_x = parent_rect.center().x() - self_rect.width() // 2
-            new_y = parent_rect.center().y() - self_rect.height() // 2
-            
-            new_x = max(0, min(new_x, parent_rect.width() - self_rect.width()))
-            new_y = max(0, min(new_y, parent_rect.height() - self_rect.height()))
-            
-            new_pos = self.parent.mapToGlobal(QPoint(new_x, new_y))
-            self.move(new_pos)
-            logger.debug(f"Centered dialog at: {new_pos}")
+        # Get the primary screen's geometry
+        screen_geometry = QApplication.primaryScreen().availableGeometry()
+        
+        # Get the dialog's geometry
+        dialog_geometry = self.frameGeometry()
+        
+        if isinstance(self.master, QWidget):
+            # If master is a widget, center on it
+            parent_geometry = self.master.geometry()
+            center_point = parent_geometry.center()
         else:
-            logger.warning("No valid parent widget found for centering")
-            # Optionally, center on screen if no parent
-            screen = QApplication.primaryScreen().geometry()
-            self.move(screen.center() - self.rect().center())
+            # If master is not a widget (e.g., QApplication), center on screen
+            center_point = screen_geometry.center()
+        
+        # Move dialog to center point
+        dialog_geometry.moveCenter(center_point)
+        
+        # Ensure the dialog is fully visible on the screen
+        dialog_geometry = self.ensure_on_screen(dialog_geometry, screen_geometry)
+        
+        # Set the new position
+        self.move(dialog_geometry.topLeft())
+        logger.debug(f"Centered dialog at: {dialog_geometry.topLeft()}")
 
     def closeEvent(self, event):
         logger.debug(f"{self.__class__.__name__} closeEvent triggered")
