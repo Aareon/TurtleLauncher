@@ -24,6 +24,7 @@ class Config:
         self.selected_binary = None
         self.particles_disabled = False
         self.transparency_disabled = False
+        self.minimize_on_launch = False
 
         self._loaded = False
 
@@ -65,7 +66,8 @@ class Config:
             'game_install_dir': str(self.game_install_dir) if self.game_install_dir else None,
             'selected_binary': self.selected_binary,
             'particles_disabled': self.particles_disabled,
-            'transparency_disabled': self.transparency_disabled
+            'transparency_disabled': self.transparency_disabled,
+            'minimize_on_launch': self.minimize_on_launch
         }
         with open(self.config_path, 'w') as f:
             json.dump(config, f)
@@ -83,10 +85,12 @@ class Config:
             self.selected_binary = config.get('selected_binary')
             self.particles_disabled = config.get('particles_disabled', False)
             self.transparency_disabled = config.get('transparency_disabled', False)
+            self.minimize_on_launch = config.get('minimize_on_launch', False)
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")
             logger.debug(f"Config loaded - Transparency disabled: {self.transparency_disabled}")
+            logger.debug(f"Config loaded - Minimize on launch: {self.minimize_on_launch}")
             self._loaded = True
             return True
         except Exception as e:

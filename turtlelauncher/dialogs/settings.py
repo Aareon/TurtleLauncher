@@ -13,6 +13,7 @@ import shutil
 class SettingsDialog(BaseDialog):
     particles_setting_changed = Signal(bool)
     transparency_setting_changed = Signal(bool)
+    minimize_on_launch_changed = Signal(bool)
 
     def __init__(self, parent=None, game_installed=False, config=None):
         icon_path = IMAGES / "turtle_wow_icon.png"
@@ -26,6 +27,7 @@ class SettingsDialog(BaseDialog):
             modal=True,
             flags=Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
         )
+        self.finished.connect(self.on_dialog_finished)
 
     def setup_ui(self, title, message, icon_path):
         super().setup_ui(title, message, icon_path)
@@ -47,6 +49,7 @@ class SettingsDialog(BaseDialog):
         launcher_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.create_checkbox("Disable Particles", "particles_disabled", self.config.particles_disabled, launcher_layout)
         self.create_checkbox("Clear Cache On Launch", "clear_cache_on_launch", False, launcher_layout)
+        self.create_checkbox("Minimize Launcher on Game Launch", "minimize_on_launch", self.config.minimize_on_launch, launcher_layout)
         # TODO implement transparency toggling
         #self.create_checkbox("Disable Transparency", "transparency_disabled", self.config.transparency_disabled, launcher_layout)
         self.create_button("Open Logs Folder", self.open_logs_folder, launcher_layout)
@@ -226,20 +229,24 @@ class SettingsDialog(BaseDialog):
         self.set_setting("transparency_disabled", self.config.transparency_disabled)
         self.adjustSize()  # Adjust the size of the dialog to fit its contents
 
-    def closeEvent(self, event):
+    def on_dialog_finished(self, result):
+        logger.debug("SettingsDialog is finishing, saving settings...")
         self.save_settings()
-        super().closeEvent(event)
     
     def on_checkbox_changed(self, setting_name, state):
         super().on_checkbox_changed(setting_name, state)
+        logger.info(f"Checkbox changed: {setting_name}, {'True' if state else 'False'}")
         if setting_name == "particles_disabled":
             self.particles_setting_changed.emit(not state)
         elif setting_name == "transparency_disabled":
             self.transparency_setting_changed.emit(state)
+        elif setting_name == "minimize_on_launch":
+            self.minimize_on_launch_changed.emit(state)
 
     def save_settings(self):
         particles_checked = self.get_setting("particles_disabled")
         transparency_checked = self.get_setting("transparency_disabled")
+        minimize_on_launch_checked = self.get_setting("minimize_on_launch")
 
         if particles_checked != self.config.particles_disabled:
             logger.debug(f"Saving particles setting: {particles_checked}")
@@ -251,7 +258,13 @@ class SettingsDialog(BaseDialog):
             self.config.transparency_disabled = transparency_checked
             self.transparency_setting_changed.emit(transparency_checked)
 
+        if minimize_on_launch_checked != self.config.minimize_on_launch:
+            logger.debug(f"Saving minimize on launch setting: {minimize_on_launch_checked}")
+            self.config.minimize_on_launch = minimize_on_launch_checked
+            self.minimize_on_launch_changed.emit(minimize_on_launch_checked)
+
         self.config.save()
+        logger.info("Settings saved successfully")
 
     def show_warning_dialog(self, title, message):
         custom_styles = {
