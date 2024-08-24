@@ -25,6 +25,7 @@ class Config:
         self.particles_disabled = False
         self.transparency_disabled = False
         self.minimize_on_launch = False
+        self.clear_cache_on_launch = False
 
         self._loaded = False
 
@@ -67,7 +68,8 @@ class Config:
             'selected_binary': self.selected_binary,
             'particles_disabled': self.particles_disabled,
             'transparency_disabled': self.transparency_disabled,
-            'minimize_on_launch': self.minimize_on_launch
+            'minimize_on_launch': self.minimize_on_launch,
+            'clear_cache_on_launch': self.clear_cache_on_launch
         }
         with open(self.config_path, 'w') as f:
             json.dump(config, f)
@@ -86,11 +88,13 @@ class Config:
             self.particles_disabled = config.get('particles_disabled', False)
             self.transparency_disabled = config.get('transparency_disabled', False)
             self.minimize_on_launch = config.get('minimize_on_launch', False)
+            self.clear_cache_on_launch = config.get('clear_cache_on_launch', False)
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")
             logger.debug(f"Config loaded - Transparency disabled: {self.transparency_disabled}")
             logger.debug(f"Config loaded - Minimize on launch: {self.minimize_on_launch}")
+            logger.debug(f"Config loaded - Clear cache on launch: {self.clear_cache_on_launch}")
             self._loaded = True
             return True
         except Exception as e:
