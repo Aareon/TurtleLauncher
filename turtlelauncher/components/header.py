@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import QHBoxLayout, QFrame
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from pathlib import Path
@@ -9,7 +9,6 @@ HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
 DATA = ASSETS / "data"
 IMAGES = ASSETS / "images"
-
 
 class HeaderWidget(QFrame):
     def __init__(self):
@@ -22,14 +21,11 @@ class HeaderWidget(QFrame):
         layout.setSpacing(0)  # Set spacing to 0 to control it manually
 
         # Logo on the left
-        logo_label = QLabel()
         logo_path = IMAGES / "turtle_wow_logo.png"
-        logo_pixmap = QPixmap(str(logo_path))
-        if logo_pixmap.isNull():
-            logger.error(f"Failed to load logo: {logo_path}")
-        else:
-            logo_label.setPixmap(logo_pixmap.scaled(200, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        layout.addWidget(logo_label)
+        logo_button = IconButton(logo_path, "https://turtle-wow.org/", 150)
+        logo_button.setFixedSize(200, 50)  # Set fixed size for the logo button
+        logo_button.setStyleSheet("IconButton { border: none; }")  # Remove any border
+        layout.addWidget(logo_button)
 
         # Spacer to push icons to the right
         layout.addStretch()
