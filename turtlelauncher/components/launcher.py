@@ -30,7 +30,7 @@ class LauncherWidget(QWidget):
     def __init__(self, parent, check_game_installation_callback, config):
         super().__init__()
 
-        self.parent = parent
+        self.master = parent
         self.check_game_installation_callback = check_game_installation_callback
         self.config = config
         if not self.config._loaded:
@@ -273,7 +273,7 @@ class LauncherWidget(QWidget):
         QTimer.singleShot(0, lambda: self.download_utility.download_and_extract(url, extract_path))
     
     def stop_download(self):
-        dialog = StopDownloadDialog(self.parent)
+        dialog = StopDownloadDialog(self.master)
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
             self.download_utility.cancel_download()
@@ -366,7 +366,7 @@ class LauncherWidget(QWidget):
                     logger.error(error_message)
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog("Game Execution Error", error_message)
+                    show_error_dialog(self.master, "Game Execution Error", error_message)
                 else:
                     logger.info("Game process has ended normally")
 
@@ -385,28 +385,28 @@ class LauncherWidget(QWidget):
                     self.config.selected_binary = None
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog("Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+                    show_error_dialog(self.master, "Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
                     return False
                 
                 if not os.access(binary_path, os.R_OK):
                     logger.warning(f"Selected binary is not readable: {binary_path}")
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog("Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
+                    show_error_dialog(self.master, "Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
                     return False
                 
                 if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
                     logger.warning(f"Selected binary is not executable: {binary_path}")
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog("Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
+                    show_error_dialog(self.master, "Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
                     return False
                 
                 logger.info(f"Selected binary is valid: {binary_path}")
                 return True
             except Exception as e:
                 logger.error(f"Error validating binary: {e}")
-                show_error_dialog("Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
+                show_error_dialog(self.master, "Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
                 return False
         else:
             logger.info("No binary currently selected")
@@ -417,7 +417,7 @@ class LauncherWidget(QWidget):
             logger.warning("No binary selected for execution")
             if self.game_launch_dialog:
                 self.game_launch_dialog.close()
-            show_error_dialog("Execution Error", "No game binary has been selected. Please select a binary first.")
+            show_error_dialog(self.master, "Execution Error", "No game binary has been selected. Please select a binary first.")
             return
         
         logger.info(f"Should clear cache on launch: {self.config.clear_cache_on_launch}")
@@ -430,12 +430,12 @@ class LauncherWidget(QWidget):
                 logger.warning(f"Cache already empty: {message}")
                 if self.game_launch_dialog:
                     self.game_launch_dialog.close()
-                show_error_dialog("Cache Clear Warning", f"Cache is already empty: {message}")
+                show_error_dialog(self.master, "Cache Clear Warning", f"Cache is already empty: {message}")
             elif result_kind == "error":
                 logger.error(f"Failed to clear cache: {message}")
                 if self.game_launch_dialog:
                     self.game_launch_dialog.close()
-                show_error_dialog("Cache Clear Error", f"Failed to clear the cache: {message}")
+                show_error_dialog(self.master, "Cache Clear Error", f"Failed to clear the cache: {message}")
                 return
 
         binary_path = Path(self.config.selected_binary)
@@ -453,7 +453,7 @@ class LauncherWidget(QWidget):
                 raise PermissionError(f"The selected binary is not executable: {binary_path}")
             
             # Create and show the GameLaunchDialog
-            self.game_launch_dialog = GameLaunchDialog(self.parent)
+            self.game_launch_dialog = GameLaunchDialog(self.master)
             self.game_launch_dialog.show()
 
             # Start the subprocess
@@ -479,13 +479,13 @@ class LauncherWidget(QWidget):
             
             # Minimize the launcher window if the setting is enabled
             if self.config.minimize_on_launch:
-                self.parent.showMinimized()
+                self.master.showMinimized()
         except Exception as e:
             error_message = f"Failed to execute the selected binary: {str(e)}"
             logger.error(error_message, exc_info=True)
             if self.game_launch_dialog:
                 self.game_launch_dialog.close()
-            show_error_dialog("Execution Error", error_message)
+            show_error_dialog(self.master, "Execution Error", error_message)
     
     @Slot(str)
     def on_binary_selected(self, selected_binary):
@@ -494,6 +494,6 @@ class LauncherWidget(QWidget):
         self.play_button_clicked.emit()
     
     def open_binary_selection_dialog(self):
-        dialog = BinarySelectionDialog(self.config, self.parent)
+        dialog = BinarySelectionDialog(self.config, self.master)
         dialog.binary_selected.connect(self.on_binary_selected)
         dialog.exec()
