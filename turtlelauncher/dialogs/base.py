@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout, QCheckBox
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout, QCheckBox, QApplication
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, QPoint, Signal
 from pathlib import Path
@@ -14,6 +14,7 @@ class BaseDialog(QDialog):
         self.setWindowTitle(title)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setModal(modal)
+        self.parent = parent
 
         self.dragging = False
         self.drag_position = QPoint()
@@ -217,8 +218,8 @@ class BaseDialog(QDialog):
         self.center_on_parent()
 
     def center_on_parent(self):
-        if self.parent():
-            parent_rect = self.parent().rect()
+        if self.parent is not None and isinstance(self.parent, QWidget):
+            parent_rect = self.parent.rect()
             self_rect = self.rect()
             
             new_x = parent_rect.center().x() - self_rect.width() // 2
@@ -227,11 +228,14 @@ class BaseDialog(QDialog):
             new_x = max(0, min(new_x, parent_rect.width() - self_rect.width()))
             new_y = max(0, min(new_y, parent_rect.height() - self_rect.height()))
             
-            new_pos = self.parent().mapToGlobal(QPoint(new_x, new_y))
+            new_pos = self.parent.mapToGlobal(QPoint(new_x, new_y))
             self.move(new_pos)
             logger.debug(f"Centered dialog at: {new_pos}")
         else:
-            logger.warning("No parent widget found for centering")
+            logger.warning("No valid parent widget found for centering")
+            # Optionally, center on screen if no parent
+            screen = QApplication.primaryScreen().geometry()
+            self.move(screen.center() - self.rect().center())
 
     def closeEvent(self, event):
         logger.debug(f"{self.__class__.__name__} closeEvent triggered")

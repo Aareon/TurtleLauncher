@@ -74,20 +74,3 @@ class GameLaunchDialog(BaseDialog):
     def showEvent(self, event):
         super().showEvent(event)
         self.center_on_parent()
-
-    def center_on_parent(self):
-        parent = self.master
-        if parent is not None:
-            parent_rect = parent.geometry()
-            self_rect = self.geometry()
-            
-            new_x = parent_rect.center().x() - self_rect.width() // 2
-            new_y = parent_rect.center().y() - self_rect.height() // 2
-            
-            new_pos = parent.mapToGlobal(QPoint(new_x, new_y))
-            self.move(new_pos)
-            logger.debug(f"Centered dialog at: {new_pos}")
-        else:
-            logger.debug("No parent widget, centering on screen")
-            screen = QApplication.primaryScreen().geometry()
-            self.move(screen.center() - self.rect().center())
