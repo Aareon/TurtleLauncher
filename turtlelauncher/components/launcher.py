@@ -455,6 +455,10 @@ class LauncherWidget(QWidget):
             self.process_monitor_timer.start(1000)  # Check every second
             
             logger.info(f"Binary execution initiated successfully. PID: {self.game_process.pid}")
+            
+            # Minimize the launcher window if the setting is enabled
+            if self.config.minimize_on_launch:
+                self.parent.showMinimized()
         except Exception as e:
             error_message = f"Failed to execute the selected binary: {str(e)}"
             logger.error(error_message, exc_info=True)
