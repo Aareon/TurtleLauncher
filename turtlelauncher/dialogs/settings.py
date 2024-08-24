@@ -3,11 +3,14 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog
 from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from loguru import logger
 from turtlelauncher.utils.config import TOOL_FOLDER, IMAGES
+from turtlelauncher.utils.game_utils import clear_cache
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
+from turtlelauncher.dialogs.error import ErrorDialog
 from pathlib import Path
 import os
 import shutil
+import re
 
 
 class SettingsDialog(BaseDialog):
@@ -59,8 +62,8 @@ class SettingsDialog(BaseDialog):
         fixes_tab = QWidget()
         fixes_layout = QVBoxLayout(fixes_tab)
         fixes_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.create_checkbox("Fix Black Screen", "black_screen_fix", False, fixes_layout)
-        self.create_checkbox("Fix VanillaTweaks Alt-Tab", "vanilla_tweaks_alt_tab_fix", False, fixes_layout)
+        self.create_button("Fix Black Screen", self.fix_black_screen, fixes_layout)
+        self.create_button("Fix VanillaTweaks Alt-Tab", self.fix_vanilla_tweaks_alt_tab, fixes_layout)
         tab_widget.addTab(fixes_tab, "Fixes")
 
         self.update_button_states()
@@ -148,28 +151,13 @@ class SettingsDialog(BaseDialog):
         )
         
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
-            wdb_path = Path(self.config.game_install_dir) / "WDB"
-            
-            if wdb_path.exists() and wdb_path.is_dir():
-                if not any(wdb_path.iterdir()):
-                    logger.warning("WDB folder is empty")
-                    self.show_warning_dialog("Warning", "The cache (WDB folder) is already empty. No cache to clear.")
-                    return
-
-                try:
-                    for item in wdb_path.iterdir():
-                        if item.is_file():
-                            item.unlink()
-                        elif item.is_dir():
-                            shutil.rmtree(item)
-                    logger.info("Successfully cleared cache")
-                    self.show_success_dialog("Success", "Cache has been cleared successfully.")
-                except Exception as e:
-                    logger.error(f"Error clearing cache: {str(e)}")
-                    self.show_error_dialog("Error", f"An error occurred while clearing cache: {str(e)}")
-            else:
-                logger.warning("WDB folder not found in the game installation directory")
-                self.show_warning_dialog("Warning", "WDB folder (cache) not found in the game installation directory.")
+            kind, message = clear_cache(self.config.game_install_dir)
+            if kind == "warning":
+                self.show_warning_dialog("Warning", message)
+            elif kind == "success":
+                self.show_success_dialog("Success", message)
+            elif kind == "error":
+                self.show_error_dialog("Error", message)
         else:
             logger.debug("Cache clearing cancelled by user")
 
@@ -214,11 +202,104 @@ class SettingsDialog(BaseDialog):
     
     def fix_black_screen(self):
         logger.debug("Fixing black screen")
-        self.show_warning_dialog("Not Implemented", "This feature is not implemented yet.")
+        config_wtf_path = Path(self.config.game_install_dir) / "WTF" / "Config.wtf"
+
+        if not config_wtf_path.exists():
+            error_message = "Config.wtf file not found. Unable to apply Black Screen fix."
+            logger.error(error_message)
+            ErrorDialog(self, title="Error", message=error_message).exec()
+            return
+
+        try:
+            with open(config_wtf_path, 'r') as file:
+                lines = file.readlines()
+
+            gxWindow_found = False
+            gxMaximize_found = False
+            modified = False
+
+            for i, line in enumerate(lines):
+                if line.startswith('SET gxWindow '):
+                    gxWindow_found = True
+                    if not line.strip().endswith('"1"'):
+                        lines[i] = 'SET gxWindow "1"\n'
+                        modified = True
+                elif line.startswith('SET gxMaximize '):
+                    gxMaximize_found = True
+                    if not line.strip().endswith('"1"'):
+                        lines[i] = 'SET gxMaximize "1"\n'
+                        modified = True
+
+            if not gxWindow_found:
+                lines.append('SET gxWindow "1"\n')
+                modified = True
+            if not gxMaximize_found:
+                lines.append('SET gxMaximize "1"\n')
+                modified = True
+
+            if modified:
+                with open(config_wtf_path, 'w') as file:
+                    file.writelines(lines)
+                logger.info("Successfully applied Black Screen fix")
+                self.show_success_dialog("Success", "Black Screen fix has been applied successfully.")
+                self.black_screen_fix_changed.emit(True)
+            else:
+                logger.info("Black Screen fix was already applied")
+                self.show_warning_dialog("Info", "Black Screen fix was already applied. No changes were needed.")
+
+        except Exception as e:
+            error_message = f"An error occurred while applying Black Screen fix: {str(e)}"
+            logger.error(error_message)
+            ErrorDialog(self, title="Error", message=error_message).exec()
 
     def fix_vanilla_tweaks_alt_tab(self):
         logger.debug("Fixing VanillaTweaks Alt-Tab")
-        self.show_warning_dialog("Not Implemented", "This feature is not implemented yet.")
+        dxvk_conf_path = Path(self.config.game_install_dir) / "dxvk.conf"
+
+        if not dxvk_conf_path.exists():
+            error_message = "dxvk.conf file not found. Unable to apply VanillaTweaks Alt-Tab fix."
+            logger.error(error_message)
+            ErrorDialog(self, title="Error", message=error_message).exec()
+            return
+
+        try:
+            with open(dxvk_conf_path, 'r') as file:
+                dxvk_lines = file.readlines()
+
+            dxvk_setting_found = False
+            dxvk_modified = False
+            dialog_mode_pattern = re.compile(r'^#?\s*d3d9\.enableDialogMode\s*=')
+
+            for i, line in enumerate(dxvk_lines):
+                if dialog_mode_pattern.match(line):
+                    dxvk_setting_found = True
+                    if '=' in line:
+                        key, value = line.split('=')
+                        if value.strip().lower() != 'true':
+                            dxvk_lines[i] = 'd3d9.enableDialogMode = True\n'
+                            dxvk_modified = True
+                    else:
+                        dxvk_lines[i] = 'd3d9.enableDialogMode = True\n'
+                        dxvk_modified = True
+                    break
+
+            if not dxvk_setting_found:
+                dxvk_lines.append('d3d9.enableDialogMode = True\n')
+                dxvk_modified = True
+
+            if dxvk_modified:
+                with open(dxvk_conf_path, 'w') as file:
+                    file.writelines(dxvk_lines)
+                logger.info("Successfully applied VanillaTweaks Alt-Tab fix")
+                self.show_success_dialog("Success", "VanillaTweaks Alt-Tab fix has been applied successfully.")
+            else:
+                logger.info("VanillaTweaks Alt-Tab fix was already applied")
+                ErrorDialog(self, title="Info", message="VanillaTweaks Alt-Tab fix was already applied. No changes were needed.").exec()
+
+        except Exception as e:
+            error_message = f"An error occurred while applying VanillaTweaks Alt-Tab fix: {str(e)}"
+            logger.error(error_message)
+            ErrorDialog(self, title="Error", message=error_message).exec()
     
     def sizeHint(self):
         return QSize(400, 500) # Set the initial size of the dialog

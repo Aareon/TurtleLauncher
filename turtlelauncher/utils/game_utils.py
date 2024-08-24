@@ -7,7 +7,8 @@ import win32ui
 from PIL import Image
 from turtlelauncher.utils.config import Config  # Only needed for type hinting
 from turtlelauncher.utils.wow_version import ExeVersionExtractor
-
+from typing import Union
+import shutil
 
 
 def check_game_installation(game_install_dir: Path | str, selected_binary: Path | str):
@@ -142,3 +143,30 @@ def update_game_install_dir(extracted_folder: Path | str, config: Config):
     config.save()
     logger.info(f"Updated game_install_dir to: {config.game_install_dir}")
     return config
+
+
+def clear_cache(game_install_dir: Path) -> Union[str, str]:
+    """Clear the cache (WDB folder) in the game installation directory
+    Returns a tuple containing the result kind and message for the dialog to be displayed
+    """
+    wdb_path = Path(game_install_dir) / "WDB"
+            
+    if wdb_path.exists() and wdb_path.is_dir():
+        if not any(wdb_path.iterdir()):
+            logger.warning("WDB folder is empty")
+            return ["warning", "The cache (WDB folder) is already empty. No cache to clear."]
+
+        try:
+            for item in wdb_path.iterdir():
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            logger.info("Successfully cleared cache")
+            return ["success", "Cache has been cleared successfully."]
+        except Exception as e:
+            logger.error(f"Error clearing cache: {str(e)}")
+            return ["error", f"An error occurred while clearing cache. {str(e)}"]
+    else:
+        logger.warning("WDB folder not found in the game installation directory")
+        return ["warning", "The cache (WDB folder) was not found in the game installation directory."]
