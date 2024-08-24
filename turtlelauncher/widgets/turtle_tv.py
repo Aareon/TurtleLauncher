@@ -34,6 +34,9 @@ class TurtleTVWidget(QFrame):
         settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
         
+        # Connect fullscreenRequested signal
+        self.web_view.page().fullScreenRequested.connect(self.handle_fullscreen_request)
+        
         self.layout.addWidget(self.web_view)
 
         # Error message label
@@ -78,6 +81,15 @@ class TurtleTVWidget(QFrame):
         else:
             logger.error(f"Failed to load video: {self.web_view.url()}")
             self.show_error("Failed to load video. Please try again later.")
+    
+    def handle_fullscreen_request(self, request):
+        if request.toggleOn():
+            self.web_view.setParent(None)
+            self.web_view.showFullScreen()
+        else:
+            self.layout.addWidget(self.web_view)
+            self.web_view.showNormal()
+        request.accept()
 
     def show_error(self, message):
         self.web_view.hide()
