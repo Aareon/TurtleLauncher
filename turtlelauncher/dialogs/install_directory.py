@@ -3,7 +3,8 @@ from PySide6.QtCore import Qt
 from pathlib import Path
 from loguru import logger
 from turtlelauncher.dialogs.base import BaseDialog
-
+from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
+import os
 
 class InstallationDirectoryDialog(BaseDialog):
     def __init__(self, parent=None, is_existing_install=False):
@@ -37,10 +38,69 @@ class InstallationDirectoryDialog(BaseDialog):
         dialog_title = "Select Existing Turtle WoW Directory" if self.is_existing_install else "Select Installation Directory"
         directory = QFileDialog.getExistingDirectory(self, dialog_title)
         if directory:
-            self.selected_directory = directory
-            self.selected_dir_label.setText(f"Selected: {directory}")
-            self.confirm_button.setEnabled(True)  # Enable the Confirm button after directory selection
-            logger.debug(f"Selected {'existing' if self.is_existing_install else 'installation'} directory: {directory}")
+            logger.info(f"Selected directory: {directory}")
+            if not self.has_directory_permissions(directory):
+                if self.confirm_privileged_directory(directory):
+                    self.set_selected_directory(directory)
+                else:
+                    logger.info("User cancelled privileged directory selection")
+            else:
+                self.set_selected_directory(directory)
+
+    def has_directory_permissions(self, directory):
+        logger.info(f"Checking permissions for directory: {directory}")
+        try:
+            # Check read permission
+            logger.debug("Checking read permission...")
+            os.listdir(directory)
+            logger.debug("Read permission check passed")
+            
+            # Check write permission
+            logger.debug("Checking write permission...")
+            test_file = os.path.join(directory, 'test_write_permission.tmp')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            logger.debug("Write permission check passed")
+            
+            # Check execute permission
+            logger.debug("Checking execute permission...")
+            original_dir = os.getcwd()
+            os.chdir(directory)
+            os.chdir(original_dir)  # Change back to original directory
+            logger.debug("Execute permission check passed")
+            
+            logger.info(f"All permission checks passed for directory: {directory}")
+            return True
+        except PermissionError as pe:
+            logger.error(f"Permission error encountered: {pe}")
+            return False
+        except OSError as ose:
+            logger.error(f"OS error encountered: {ose}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during permission check: {e}")
+            return False
+
+    def confirm_privileged_directory(self, directory):
+        logger.debug(f"Confirming privileged directory: {directory}")
+        confirmation_dialog = GenericConfirmationDialog(
+            self,
+            title="Warning: Limited Permissions",
+            message=f"You may have limited permissions in the selected directory: {directory}\n\nThe application might not function correctly without full read, write, and execute permissions. Do you want to proceed?",
+            confirm_text="Yes, I understand",
+            cancel_text="No, I want to choose another directory",
+            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
+        )
+        result = confirmation_dialog.exec() == GenericConfirmationDialog.Accepted
+        logger.debug(f"Privileged directory confirmation result: {result}")
+        return result
+
+    def set_selected_directory(self, directory):
+        self.selected_directory = directory
+        self.selected_dir_label.setText(f"Selected: {directory}")
+        self.confirm_button.setEnabled(True)
+        logger.debug(f"Selected {'existing' if self.is_existing_install else 'installation'} directory: {directory}")
 
     def generate_stylesheet(self, custom_styles=None):
         base_stylesheet = super().generate_stylesheet(custom_styles)
