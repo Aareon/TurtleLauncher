@@ -1,12 +1,12 @@
+# turtle_tv.py
+
 import json
-from loguru import logger
 from PySide6.QtWidgets import QVBoxLayout, QFrame, QSizePolicy, QLabel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtCore import QUrl, Qt, Signal, QSize
-from PySide6.QtGui import QPainter, QColor, QFont
+from PySide6.QtCore import QUrl, Qt, Signal, QTimer
+from PySide6.QtGui import QPainter, QColor
 
-from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.utils.config import DATA
 
 class CustomWebEngineView(QWebEngineView):
@@ -34,12 +34,10 @@ class TurtleTVWidget(QFrame):
         settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
         
-        # Connect fullscreenRequested signal
         self.web_view.page().fullScreenRequested.connect(self.handle_fullscreen_request)
         
         self.layout.addWidget(self.web_view)
 
-        # Error message label
         self.error_label = QLabel()
         self.error_label.setAlignment(Qt.AlignCenter)
         self.error_label.setStyleSheet("""
@@ -60,8 +58,8 @@ class TurtleTVWidget(QFrame):
         try:
             with open(DATA / "turtletv.json") as file:
                 videos = json.load(file)["videos"]
-        except Exception:
-            logger.exception("Failed to load TurtleTV data")
+        except Exception as e:
+            print(f"Failed to load TurtleTV data: {e}")
         return videos
 
     def load_current_video(self):
@@ -78,8 +76,9 @@ class TurtleTVWidget(QFrame):
             self.error_label.hide()
             self.web_view.show()
             self.inject_custom_css()
+            self.adjust_video_size()
         else:
-            logger.error(f"Failed to load video: {self.web_view.url()}")
+            print(f"Failed to load video: {self.web_view.url()}")
             self.show_error("Failed to load video. Please try again later.")
     
     def handle_fullscreen_request(self, request):
@@ -107,29 +106,46 @@ class TurtleTVWidget(QFrame):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        
         background_color = QColor(26, 29, 36, 180)
-        
         painter.setBrush(background_color)
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(self.rect(), 8, 8)
-        
         super().paintEvent(event)
 
     def inject_custom_css(self):
         css = """
             body { background-color: transparent !important; margin: 0; padding: 0; overflow: hidden; }
-            iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none !important; }
         """
         js = f"var style = document.createElement('style'); style.textContent = `{css}`; document.head.appendChild(style);"
         self.web_view.page().runJavaScript(js)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.adjust_video_size()
+    def adjust_video_size(self, available_width=None, available_height=None):
+        if available_width is None:
+            available_width = self.width()
+        if available_height is None:
+            available_height = self.height()
 
-    def adjust_video_size(self):
-        available_width = self.width()
-        available_height = self.height()
-        self.web_view.setFixedSize(QSize(available_width, available_height))
-        self.error_label.setFixedSize(QSize(available_width, available_height))
+        js = f"""
+        var iframe = document.querySelector('iframe');
+        if (iframe) {{
+            var aspectRatio = 16 / 9;
+            var availableWidth = {available_width};
+            var availableHeight = {available_height};
+            var controlsHeight = 40;
+            
+            var videoWidth = availableWidth;
+            var videoHeight = (videoWidth / aspectRatio);
+            
+            if (videoHeight + controlsHeight > availableHeight) {{
+                videoHeight = availableHeight - controlsHeight;
+                videoWidth = videoHeight * aspectRatio;
+            }}
+            
+            iframe.style.width = videoWidth + 'px';
+            iframe.style.height = videoHeight + 'px';
+            iframe.style.position = 'absolute';
+            iframe.style.left = ((availableWidth - videoWidth) / 2) + 'px';
+            iframe.style.top = '0px';
+        }}
+        """
+        self.web_view.page().runJavaScript(js)
