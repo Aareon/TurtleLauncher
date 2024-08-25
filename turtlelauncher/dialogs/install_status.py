@@ -1,6 +1,5 @@
-from pathlib import Path
 from turtlelauncher.dialogs.base import BaseDialog
-from turtlelauncher.utils.config import IMAGES
+from turtlelauncher.utils.globals import IMAGES
 
 
 class InstallationStatusDialog(BaseDialog):

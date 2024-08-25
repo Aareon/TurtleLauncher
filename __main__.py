@@ -2,7 +2,7 @@ import sys
 from datetime import datetime
 from PySide6.QtWidgets import QApplication
 from turtlelauncher.windows.main_window import TurtleWoWLauncher
-from turtlelauncher.utils.config import TOOL_FOLDER
+from turtlelauncher.utils.globals import TOOL_FOLDER
 from loguru import logger
 from turtlelauncher.__version__ import version
 

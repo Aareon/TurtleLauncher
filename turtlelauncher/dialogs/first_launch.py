@@ -1,6 +1,6 @@
 from loguru import logger
 from turtlelauncher.dialogs.base import BaseDialog
-from turtlelauncher.utils.config import IMAGES
+from turtlelauncher.utils.globals import IMAGES
 
 
 class FirstLaunchDialog(BaseDialog):

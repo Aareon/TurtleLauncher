@@ -6,7 +6,7 @@ from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.image_button import ImageButton
 from turtlelauncher.widgets.gradient_progressbar import GradientProgressBar
 from turtlelauncher.utils.downloader import DownloadExtractUtility
-from turtlelauncher.utils.config import FONTS
+from turtlelauncher.utils.globals import FONTS
 from turtlelauncher.utils.game_utils import clear_cache
 from loguru import logger
 import subprocess

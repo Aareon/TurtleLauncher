@@ -1,19 +1,7 @@
 import json
 from pathlib import Path
 from loguru import logger
-
-ROOT_DIR = Path(__file__).parent.parent
-ASSETS = ROOT_DIR.parent / "assets"
-DATA = ASSETS / "data"
-IMAGES = ASSETS / "images"
-FONTS = ASSETS / "fonts"
-
-USER_DOCUMENTS = Path.home() / "Documents"
-TOOL_FOLDER = USER_DOCUMENTS / "TurtleLauncher"
-if not TOOL_FOLDER.exists():
-    TOOL_FOLDER.mkdir(parents=True)
-
-DOWNLOAD_URL = "https://turtle-eu.b-cdn.net/twmoa_1171.zip"
+from turtlelauncher.utils.locale import initialize_locale
 
 
 class Config:
@@ -26,6 +14,9 @@ class Config:
         self.transparency_disabled = False
         self.minimize_on_launch = False
         self.clear_cache_on_launch = False
+        self.language = "en"
+        
+        self.locale = initialize_locale(self)
 
         self._loaded = False
 
@@ -69,7 +60,8 @@ class Config:
             'particles_disabled': self.particles_disabled,
             'transparency_disabled': self.transparency_disabled,
             'minimize_on_launch': self.minimize_on_launch,
-            'clear_cache_on_launch': self.clear_cache_on_launch
+            'clear_cache_on_launch': self.clear_cache_on_launch,
+            "language": self.language
         }
         with open(self.config_path, 'w') as f:
             json.dump(config, f)
@@ -89,12 +81,14 @@ class Config:
             self.transparency_disabled = config.get('transparency_disabled', False)
             self.minimize_on_launch = config.get('minimize_on_launch', False)
             self.clear_cache_on_launch = config.get('clear_cache_on_launch', False)
+            self.language = config.get("language", "en-US")
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")
             logger.debug(f"Config loaded - Transparency disabled: {self.transparency_disabled}")
             logger.debug(f"Config loaded - Minimize on launch: {self.minimize_on_launch}")
             logger.debug(f"Config loaded - Clear cache on launch: {self.clear_cache_on_launch}")
+            logger.debug(f"Config loaded - Language: {self.language}")
             self._loaded = True
             return True
         except Exception as e:

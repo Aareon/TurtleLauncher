@@ -1,12 +1,13 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, QMessageBox, QDialog, QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtCore import QTimer, Qt, Slot
+from PySide6.QtCore import QTimer, Qt, Slot, QEvent
 from PySide6.QtGui import QPalette, QBrush, QImage, QFontDatabase, QIcon
 from turtlelauncher.components.tweets_feed import TweetsFeed
 from turtlelauncher.components.featured_content import FeaturedContent
 from turtlelauncher.components.launcher import LauncherWidget
 from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.components.header import HeaderWidget
-from turtlelauncher.utils.config import Config, TOOL_FOLDER, IMAGES, FONTS, DATA, DOWNLOAD_URL
+from turtlelauncher.utils.config import Config
+from turtlelauncher.utils.globals import TOOL_FOLDER, IMAGES, FONTS, DATA, DOWNLOAD_URL
 from turtlelauncher.dialogs.first_launch import FirstLaunchDialog
 from turtlelauncher.dialogs.install_directory import InstallationDirectoryDialog
 from turtlelauncher.utils.downloader import DownloadExtractUtility
@@ -22,6 +23,8 @@ class TurtleWoWLauncher(QMainWindow):
         super().__init__()
         self.setWindowTitle("Turtle WoW Launcher")
         self.setMinimumSize(1200, 800)
+        
+        self.installEventFilter(self)
         
         # Set the window and taskbar icon
         icon_path = IMAGES / "turtle_wow_icon.png"
@@ -50,7 +53,7 @@ class TurtleWoWLauncher(QMainWindow):
             font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
         else:
             font_family = "Arial"
-        logger.debug(f"Using font family {font_family}")
+        logger.info(f"Using font family {font_family}")
 
         # Load config
         self.config = Config(TOOL_FOLDER / "launcher.json")
@@ -70,10 +73,33 @@ class TurtleWoWLauncher(QMainWindow):
         # Use QTimer to check for first launch after the main window is shown
         QTimer.singleShot(0, self.check_first_launch)
     
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.WindowStateChange:
+            if self.windowState() & Qt.WindowState.WindowActive:
+                QTimer.singleShot(100, self.update_after_wake)
+        return super().eventFilter(obj, event)
+
+    def update_after_wake(self):
+        logger.info("Updating components after wake from sleep")
+        self.force_repaint()
+        self.launcher_widget.update()
+        self.tweets_widget.update()
+        self.featured_content_widget.update()
+        
+        # Refresh dynamic content
+        self.tweets_widget.refresh_tweets()
+        self.featured_content_widget.refresh_content()
+        
+        # Update game version info
+        self.update_launcher_with_game_version()
+        
+        # Reconnect any network-dependent components
+        QApplication.processEvents()
+    
     def check_first_launch(self):
         if not self.config.exists() or not self.config.valid() or not check_game_installation(self.config.game_install_dir, self.config.selected_binary):
             logger.info("No valid game installation found. Setting Download button.")
-            self.launcher_widget.action_button.setText("Download")
+            self.launcher_widget.action_button.setText(self.config.locale.get_translation("download"))
         else:
             logger.info("Valid game installation found.")
             self.launcher_widget.set_play_mode()
@@ -111,10 +137,10 @@ class TurtleWoWLauncher(QMainWindow):
         
         if result == QDialog.DialogCode.Accepted:
             logger.debug("User chose to select existing installation")
-            self.select_installation_directory("Select Existing Installation Directory")
+            self.select_installation_directory(self.config.locale.get_translation("select_existing_installation_directory"))
         elif result == QDialog.DialogCode.Rejected:
             logger.debug("User chose to download the game")
-            self.select_installation_directory("Select Download Directory")
+            self.select_installation_directory(self.config.locale.get_translation("select_download_directory"))
         else:
             logger.debug("First launch setup canceled")
             self.cancel_setup()
@@ -126,8 +152,8 @@ class TurtleWoWLauncher(QMainWindow):
     def cancel_setup(self):
         logger.debug("Cancelling setup")
         self.launcher_widget.hide_progress_widgets()
-        self.launcher_widget.progress_label.setText("Setup canceled")
-        self.launcher_widget.action_button.setText("Download")
+        self.launcher_widget.progress_label.setText(self.config.locale.get_translation("setup_cancelled"))
+        self.launcher_widget.action_button.setText(self.config.locale.get_translation("download"))
         QApplication.processEvents()
         self.update()
 
@@ -138,7 +164,7 @@ class TurtleWoWLauncher(QMainWindow):
             self.launcher_widget.display_version_info(version)
         else:
             logger.warning("Game version could not be detected")
-            self.launcher_widget.display_version_info("Unknown")
+            self.launcher_widget.display_version_info(self.config.locale.get_translation("unknown"))
     
     def disable_main_window(self):
         self.setEnabled(False)
@@ -147,7 +173,7 @@ class TurtleWoWLauncher(QMainWindow):
         self.setEnabled(True)
 
     def select_installation_directory(self, dialog_title):
-        is_existing_install = dialog_title == "Select Existing Installation Directory"
+        is_existing_install = dialog_title == self.config.locale.get_translation("select_existing_installation_directory")
         install_dir_dialog = InstallationDirectoryDialog(self, is_existing_install)
         install_dir_dialog.setWindowTitle(dialog_title)
         install_dir_dialog.setWindowModality(Qt.WindowModal)
@@ -167,7 +193,10 @@ class TurtleWoWLauncher(QMainWindow):
                     self.update_launcher_with_game_version()
                 else:
                     logger.debug("Invalid installation directory selected")
-                    QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
+                    QMessageBox.warning(
+                        self,
+                        self.config.locale.get_translation("invalid_installation"),
+                        self.config.locale.get_translation("invalid_installation_message"))
                     self.setup_first_launch()
             else:
                 self.launcher_widget.show_progress_widgets()
@@ -197,7 +226,11 @@ class TurtleWoWLauncher(QMainWindow):
                     self.update_launcher_with_game_version()
                 else:
                     logger.debug("Invalid installation directory selected")
-                    QMessageBox.warning(self, "Invalid Installation", "The selected directory does not contain a valid Turtle WoW installation.")
+                    QMessageBox.warning(
+                        self,
+                        self.config.locale.get_translation("invalid_installation"),
+                        self.config.locale.get_translation("invalid_installation_message")
+                    )
                     self.setup_first_launch()
             else:
                 self.download_game()
@@ -227,9 +260,9 @@ class TurtleWoWLauncher(QMainWindow):
         content_layout.setContentsMargins(20, 20, 20, 20)
 
         tweets_and_featured_layout = QHBoxLayout()
-        tweets_widget = TweetsFeed(DATA / "tweets.json")
+        tweets_widget = TweetsFeed(self.config, DATA / "tweets.json")
         tweets_widget.image_clicked.connect(self.show_image_overlay)
-        featured_content_widget = FeaturedContent(content_type="turtletv", video_data=["https://turtle-wow.org/watch/embed/acfea246"])
+        featured_content_widget = FeaturedContent(self.config, content_type="turtletv", video_data=["https://turtle-wow.org/watch/embed/acfea246"])
         
         self.image_overlay = None
         
@@ -278,9 +311,9 @@ class TurtleWoWLauncher(QMainWindow):
         self.tray_icon.setIcon(self.windowIcon())
         
         tray_menu = QMenu()
-        show_action = tray_menu.addAction("Show")
+        show_action = tray_menu.addAction(self.config.locale.get_translation("show"))
         show_action.triggered.connect(self.show)
-        quit_action = tray_menu.addAction("Quit")
+        quit_action = tray_menu.addAction(self.config.locale.get_translation("quit"))
         quit_action.triggered.connect(self.quit_application)
         
         self.tray_icon.setContextMenu(tray_menu)
@@ -364,23 +397,23 @@ class TurtleWoWLauncher(QMainWindow):
                 if version:
                     logger.info(f"Game version detected: {version}")
                     self.launcher_widget.display_version_info(version)
-                    InstallationStatusDialog(self, "success", f"Turtle WoW {version} has been successfully installed!").exec()
+                    InstallationStatusDialog(self, "success", self.config.locale.get_translation("successful_install_message").format(version)).exec()
                 else:
                     logger.warning("Game version could not be detected")
-                    InstallationStatusDialog(self, "warning", "Installation completed, but game version could not be detected.").exec()
+                    InstallationStatusDialog(self, "warning", self.config.locale.get_translation("install_complete_unknown_version")).exec()
             else:
                 logger.warning("Invalid or incomplete game installation after extraction")
-                InstallationStatusDialog(self, "error", "The game files were extracted, but the installation seems incomplete. Please check the installation directory.").exec()
+                InstallationStatusDialog(self, "error", self.config.locale.get_translation("incomplete_install")).exec()
                 self.setup_first_launch()  # Restart the setup process
         else:
             logger.error("Extraction completed but no folder name was provided")
-            InstallationStatusDialog(self, "error", "The game files were extracted, but there was an issue identifying the installation folder. Please check the installation directory.").exec()
+            InstallationStatusDialog(self, "error", self.config.locale.get_translation("cannot_identify_install_folder")).exec()
             self.setup_first_launch()  # Restart the setup process
 
     @Slot(str)
     def on_error(self, error_message):
         logger.error(f"Error occurred: {error_message}")
-        InstallationStatusDialog(self, "error", f"An error occurred: {error_message}").exec()
+        InstallationStatusDialog(self, "error", self.config.locale.get_translation("an_error_occurred").format(error_message)).exec()
 
     def showEvent(self, event):
         super().showEvent(event)

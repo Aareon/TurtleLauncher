@@ -1,4 +1,4 @@
-# featured_content.py
+from loguru import logger
 
 from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QWidget, QHBoxLayout, QPushButton, QSizePolicy
 from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
@@ -7,11 +7,16 @@ from PySide6.QtCore import Qt, QTimer, QSize
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.yt_video import YouTubeVideoWidget
 from turtlelauncher.widgets.turtle_tv import TurtleTVWidget
-from turtlelauncher.utils.config import FONTS, IMAGES
+from turtlelauncher.utils.globals import FONTS, IMAGES
+from turtlelauncher.utils.config import Config
+
 
 class FeaturedContent(QFrame):
-    def __init__(self, content_type="image", video_data=None, featured_image=None):
+    def __init__(self, config: Config, content_type="image", video_data=None, featured_image=None):
         super().__init__()
+        self.config = config
+        # logger.info(self.config.locale.get_translation("featured_content"))  # this line is added to test the locale translation
+        
         self.setFrameStyle(QFrame.NoFrame)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(600, 400)
@@ -25,7 +30,13 @@ class FeaturedContent(QFrame):
         font_id = QFontDatabase.addApplicationFont(str((FONTS / font_filename).absolute()))
         font_family = QFontDatabase.applicationFontFamilies(font_id)[0] if font_id != -1 else "Arial"
         
-        self.title = GradientLabel("Featured Content", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        self.title = GradientLabel(
+            self.config.locale.get_translation("featured_content"),
+            QColor(255, 215, 0),
+            QColor(255, 105, 180),
+            intensity=2.0,
+            vertical=True
+        )
         self.title.setAlignment(Qt.AlignCenter)
         self.title.setFont(QFont(font_family, 16, QFont.Bold))
         self.title.setMaximumHeight(40)
@@ -49,7 +60,7 @@ class FeaturedContent(QFrame):
             self.video_widget = YouTubeVideoWidget(video_data)
         elif content_type == "turtletv":
             self.video_widget = TurtleTVWidget()
-            self.title.setText("Turtle TV")
+            self.title.setText(self.config.locale.get_translation("turtle_tv"))
 
         if self.video_widget:
             self.stacked_widget.addWidget(self.video_widget)

@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, 
                                QScrollArea, QFrame, QSizePolicy)
 from PySide6.QtGui import QFont, QColor, QFontDatabase, QPixmap
@@ -6,9 +7,8 @@ from PySide6.QtCore import Qt, Signal
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.image_overlay import ImageOverlay
 from turtlelauncher.widgets.tweet import TweetWidget
-from pathlib import Path
+from turtlelauncher.utils.config import Config
 
-from loguru import logger
 
 HERE = Path(__file__).parent
 ASSETS = HERE.parent.parent / "assets"
@@ -18,8 +18,9 @@ FONTS = ASSETS / "fonts"
 class TweetsFeed(QWidget):
     image_clicked = Signal(QPixmap)
 
-    def __init__(self, json_file_path):
+    def __init__(self, config: Config, json_file_path):
         super().__init__()
+        self.config = config
         self.setMinimumWidth(320)
         
         font_filename = "FontinSans_Cyrillic_R_46b.ttf"

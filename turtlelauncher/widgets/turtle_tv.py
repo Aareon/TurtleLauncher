@@ -4,14 +4,16 @@ import json
 from PySide6.QtWidgets import QVBoxLayout, QFrame, QSizePolicy, QLabel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtCore import QUrl, Qt, Signal, QTimer
+from PySide6.QtCore import QUrl, Qt, Signal
 from PySide6.QtGui import QPainter, QColor
 
-from turtlelauncher.utils.config import DATA
+from turtlelauncher.utils.globals import DATA
+
 
 class CustomWebEngineView(QWebEngineView):
     def createWindow(self, _):
         return None
+
 
 class TurtleTVWidget(QFrame):
     video_changed = Signal(int)
