@@ -42,6 +42,8 @@ class BinarySelectionDialog(BaseDialog):
         for binary in available_binaries:
             if binary.stem == "WoW_tweaked":
                 description = "Tweaked WoW Client"
+            elif binary.strem == "VanillaFixes.exe":
+                description = "Eliminates stutter and animation lag"
             elif binary.stem == "WoWFoV":
                 description = "Field of View Fixes"
             elif binary.stem == "WoW":
