@@ -9,10 +9,11 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 pywin32 = "^306"
-pyside6 = "^6.7.2"
+pyside6 = {extras = ["multimedia"], version = "^6.7.2"}
 httpx = {extras = ["http2"], version = "^0.27.0"}
 loguru = "^0.7.2"
 pillow = "^10.4.0"
+cloudscraper = "^1.2.71"
 
 
 [build-system]

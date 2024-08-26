@@ -81,7 +81,7 @@ class Config:
             self.transparency_disabled = config.get('transparency_disabled', False)
             self.minimize_on_launch = config.get('minimize_on_launch', False)
             self.clear_cache_on_launch = config.get('clear_cache_on_launch', False)
-            self.language = config.get("language", "en-US")
+            self.language = config.get("language", "English")
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")

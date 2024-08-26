@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from loguru import logger
 from turtlelauncher.utils.globals import LOCALES
 
@@ -32,7 +31,7 @@ class Locale:
         
         if key not in self.translations[language]:
             logger.warning(f"Translation key '{key}' not found for language '{language}', falling back to English")
-            return self.translations.get('en', {}).get(key, key)
+            return self.translations.get('English', {}).get(key, key)
         
         return self.translations[language][key]
 

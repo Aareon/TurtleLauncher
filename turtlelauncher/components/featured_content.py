@@ -1,8 +1,7 @@
-from loguru import logger
-
-from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QWidget, QHBoxLayout, QPushButton, QSizePolicy
+import logging
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QFrame, QStackedWidget, QSizePolicy
 from PySide6.QtGui import QPixmap, QFont, QColor, QPainter, QFontDatabase
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QSize
 
 from turtlelauncher.widgets.gradient_label import GradientLabel
 from turtlelauncher.widgets.yt_video import YouTubeVideoWidget
@@ -10,17 +9,17 @@ from turtlelauncher.widgets.turtle_tv import TurtleTVWidget
 from turtlelauncher.utils.globals import FONTS, IMAGES
 from turtlelauncher.utils.config import Config
 
+logger = logging.getLogger(__name__)
 
 class FeaturedContent(QFrame):
     def __init__(self, config: Config, content_type="image", video_data=None, featured_image=None):
         super().__init__()
         self.config = config
-        # logger.info(self.config.locale.get_translation("featured_content"))  # this line is added to test the locale translation
         
         self.setFrameStyle(QFrame.NoFrame)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setMinimumSize(600, 400)
-
+        self.setMinimumSize(400, 300)
+        
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(15, 15, 15, 15)
         self.layout.setSpacing(10)
@@ -68,61 +67,30 @@ class FeaturedContent(QFrame):
         # Set current widget
         self.stacked_widget.setCurrentWidget(self.video_widget if self.video_widget else self.featured_image_label)
 
-        # Controls
-        controls_widget = QWidget()
-        controls_layout = QHBoxLayout(controls_widget)
-        controls_layout.setContentsMargins(0, 10, 0, 0)
-        controls_layout.setSpacing(10)
-
-        self.prev_button = QPushButton("←")
-        self.next_button = QPushButton("→")
-        self.prev_button.setFixedSize(QSize(40, 40))
-        self.next_button.setFixedSize(QSize(40, 40))
-
-        if isinstance(self.video_widget, TurtleTVWidget):
-            self.prev_button.clicked.connect(self.video_widget.previous_video)
-            self.next_button.clicked.connect(self.video_widget.next_video)
-            self.video_widget.video_changed.connect(self.update_description)
-        
+        # Title Label
         self.title_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
         self.title_label.setStyleSheet("background-color: transparent;")
         self.title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.title_label.setMinimumWidth(200)
-
-        controls_layout.addWidget(self.prev_button)
-        controls_layout.addWidget(self.title_label, 1)
-        controls_layout.addWidget(self.next_button)
-
-        self.layout.addWidget(controls_widget)
+        self.layout.addWidget(self.title_label)
 
         self.setStyleSheet("""
             QLabel { background-color: transparent; }
-            QPushButton {
-                background-color: #4a0e4e;
-                color: #FFD700;
-                border: 2px solid #FF69B4;
-                padding: 5px 10px;
-                border-radius: 5px;
-                font-size: 18px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #6a1a6e;
-                border-color: #FFD700;
-            }
         """)
-
-        self.resize_timer = QTimer(self)
-        self.resize_timer.setSingleShot(True)
-        self.resize_timer.timeout.connect(self.adjust_layout)
         
-        self.update_description(self.video_widget.current_index)
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.video_widget.video_changed.connect(self.update_description)
+        
+        self.update_description(self.video_widget.current_index if self.video_widget else 0)
+
+        logger.debug(f"FeaturedContent initialized with content_type: {content_type}")
 
     def update_description(self, index):
         if isinstance(self.video_widget, TurtleTVWidget):
             self.title_label.setText(self.video_widget.videos[index]["title"])
+        logger.debug(f"Updated description for video index: {index}")
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -135,10 +103,15 @@ class FeaturedContent(QFrame):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.resize_timer.start(200)
+        self.adjust_layout()
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.adjust_layout()
 
     def adjust_layout(self):
         if isinstance(self.video_widget, TurtleTVWidget):
-            available_width = self.stacked_widget.width()
-            available_height = self.stacked_widget.height()
-            self.video_widget.adjust_video_size(available_width, available_height)
+            self.video_widget.adjust_video_size()
+
+    def sizeHint(self):
+        return QSize(640, 480)  # Suggested size, can be adjusted as needed
