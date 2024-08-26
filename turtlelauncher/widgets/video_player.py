@@ -1,70 +1,73 @@
-from PySide6.QtWidgets import (QVBoxLayout, QFrame, QWidget, QPushButton, 
-                               QHBoxLayout, QStyle, QSlider, QCheckBox)
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtCore import QUrl, Qt, QTimer
-from PySide6.QtGui import QKeyEvent
+import cv2
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QSlider, QLabel, QStyle
+from PySide6.QtCore import Qt, QTimer, Signal, QThread, QSize
+from PySide6.QtGui import QImage, QPixmap, QPainter, QColor
 
-class VideoPlayer(QFrame):
+class VideoThread(QThread):
+    change_pixmap_signal = Signal(QImage)
+
     def __init__(self):
         super().__init__()
-        self.setFrameStyle(QFrame.NoFrame)
-        self.setMouseTracking(True)
+        self._run_flag = True
+        self.cap = None
+        self.current_frame = 0
+        self.total_frames = 0
 
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(0)
+    def run(self):
+        while self._run_flag:
+            ret, cv_img = self.cap.read()
+            if ret:
+                self.current_frame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+                rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgb_image.shape
+                bytes_per_line = ch * w
+                convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                self.change_pixmap_signal.emit(convert_to_Qt_format)
+            else:
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        self.media_player = QMediaPlayer()
-        self.audio_output = QAudioOutput()
-        self.media_player.setAudioOutput(self.audio_output)
+    def stop(self):
+        self._run_flag = False
+        self.wait()
 
-        self.video_widget = QVideoWidget()
-        self.layout.addWidget(self.video_widget)
-        self.media_player.setVideoOutput(self.video_widget)
+    def pause(self):
+        self._run_flag = False
 
-        self.controls_widget = QWidget()
-        self.controls_layout = QHBoxLayout(self.controls_widget)
-        self.layout.addWidget(self.controls_widget)
+    def resume(self):
+        self._run_flag = True
+        self.start()
 
-        self.play_button = QPushButton()
-        self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.play_button.clicked.connect(self.play_pause)
+    def set_video(self, video_path):
+        if self.cap is not None:
+            self.cap.release()
+        self.cap = cv2.VideoCapture(video_path)
+        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        self.seek_slider = QSlider(Qt.Horizontal)
-        self.seek_slider.sliderMoved.connect(self.set_position)
+    def seek(self, frame_number):
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
-        self.volume_button = QPushButton()
-        self.volume_button.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-        self.volume_button.clicked.connect(self.toggle_mute)
-
-        self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(50)
-        self.volume_slider.valueChanged.connect(self.set_volume)
-
-        self.fullscreen_button = QPushButton()
-        self.fullscreen_button.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
-        self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
-
-        self.always_show_controls = QCheckBox("Always Show Controls")
-        self.always_show_controls.stateChanged.connect(self.toggle_controls_visibility)
-
-        self.controls_layout.addWidget(self.play_button)
-        self.controls_layout.addWidget(self.seek_slider)
-        self.controls_layout.addWidget(self.volume_button)
-        self.controls_layout.addWidget(self.volume_slider)
-        self.controls_layout.addWidget(self.fullscreen_button)
-        self.controls_layout.addWidget(self.always_show_controls)
-
-        self.fade_timer = QTimer(self)
-        self.fade_timer.setSingleShot(True)
-        self.fade_timer.timeout.connect(self.fade_out_controls)
-
-        self.media_player.positionChanged.connect(self.position_changed)
-        self.media_player.durationChanged.connect(self.duration_changed)
-
+class OpenCVVideoPlayer(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
+        self.setLineWidth(0)
         self.setStyleSheet("""
+            QFrame {
+                background-color: #1a1d24;
+                border-radius: 10px;
+            }
+            QPushButton {
+                background-color: rgba(74, 14, 78, 150);
+                color: #FFD700;
+                border: none;
+                border-radius: 15px;
+                padding: 5px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(106, 26, 110, 200);
+            }
             QSlider::groove:horizontal {
                 border: 1px solid #999999;
                 height: 8px;
@@ -72,91 +75,96 @@ class VideoPlayer(QFrame):
                 margin: 2px 0;
             }
             QSlider::handle:horizontal {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FF539C, stop:1 #FFD700);
                 border: 1px solid #5c5c5c;
                 width: 18px;
                 margin: -2px 0;
                 border-radius: 3px;
             }
-            QPushButton {
-                background-color: rgba(74, 14, 78, 150);
-                color: #FFD700;
-                border: none;
-                padding: 5px;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: rgba(106, 26, 110, 200);
-            }
         """)
 
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(10, 10, 10, 10)
+
+        self.video_label = QLabel(self)
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.video_label, 1)
+
+        self.create_controls()
+
+        self.thread = VideoThread()
+        self.thread.change_pixmap_signal.connect(self.update_image)
+
+        self.timer = QTimer(self)
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.update_slider)
+        self.timer.start()
+
+    def create_controls(self):
+        controls_layout = QHBoxLayout()
+
+        self.prev_button = QPushButton("←")
+        self.prev_button.setFixedSize(40, 40)
+        self.play_button = QPushButton()
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.play_button.setFixedSize(40, 40)
+        self.next_button = QPushButton("→")
+        self.next_button.setFixedSize(40, 40)
+
+        self.play_button.clicked.connect(self.play_pause)
+
+        self.position_slider = QSlider(Qt.Horizontal)
+        self.position_slider.setRange(0, 1000)
+        self.position_slider.sliderMoved.connect(self.set_position)
+
+        controls_layout.addWidget(self.prev_button)
+        controls_layout.addWidget(self.play_button)
+        controls_layout.addWidget(self.next_button)
+        controls_layout.addWidget(self.position_slider)
+
+        self.layout.addLayout(controls_layout)
+
+    def set_media(self, video_path):
+        self.thread.set_video(video_path)
+
     def play_pause(self):
-        if self.media_player.playbackState() == QMediaPlayer.PlayingState:
-            self.media_player.pause()
+        if self.thread.isRunning():
+            self.thread.pause()
+            self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         else:
-            self.media_player.play()
+            self.thread.resume()
+            self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
 
     def set_position(self, position):
-        self.media_player.setPosition(position)
+        if self.thread.total_frames > 0:
+            frame_number = int((position / 1000) * self.thread.total_frames)
+            self.thread.seek(frame_number)
 
-    def position_changed(self, position):
-        self.seek_slider.setValue(position)
+    def update_slider(self):
+        if self.thread.total_frames > 0:
+            position = int((self.thread.current_frame / self.thread.total_frames) * 1000)
+            self.position_slider.setValue(position)
 
-    def duration_changed(self, duration):
-        self.seek_slider.setRange(0, duration)
-
-    def set_volume(self, volume):
-        self.audio_output.setVolume(volume / 100)
-
-    def toggle_mute(self):
-        self.audio_output.setMuted(not self.audio_output.isMuted())
-
-    def toggle_fullscreen(self):
-        if self.isFullScreen():
-            self.showNormal()
-        else:
-            self.showFullScreen()
-
-    def toggle_controls_visibility(self, state):
-        self.controls_widget.setVisible(state == Qt.Checked)
-
-    def fade_out_controls(self):
-        if not self.always_show_controls.isChecked():
-            self.controls_widget.setVisible(False)
-
-    def enterEvent(self, event):
-        self.controls_widget.setVisible(True)
-        self.fade_timer.start(3000)
-
-    def leaveEvent(self, event):
-        self.fade_out_controls()
-
-    def mouseMoveEvent(self, event):
-        self.controls_widget.setVisible(True)
-        self.fade_timer.start(3000)
-
-    def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key_Space:
-            self.play_pause()
-        elif event.key() == Qt.Key_F:
-            self.toggle_fullscreen()
-        elif event.key() == Qt.Key_M:
-            self.toggle_mute()
-        elif event.key() == Qt.Key_Right:
-            self.media_player.setPosition(self.media_player.position() + 5000)  # Forward 5 seconds
-        elif event.key() == Qt.Key_Left:
-            self.media_player.setPosition(self.media_player.position() - 5000)  # Backward 5 seconds
-        else:
-            super().keyPressEvent(event)
-
-    def set_media(self, url):
-        self.media_player.setSource(QUrl(url))
+    def update_image(self, image):
+        scaled_image = image.scaled(self.video_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.video_label.setPixmap(QPixmap.fromImage(scaled_image))
 
     def play(self):
-        self.media_player.play()
+        self.thread.start()
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
 
     def pause(self):
-        self.media_player.pause()
+        self.thread.pause()
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
     def stop(self):
-        self.media_player.stop()
+        self.thread.stop()
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.video_label.setFixedSize(self.size())
+
+    def connect_navigation_buttons(self, prev_callback, next_callback):
+        self.prev_button.clicked.connect(prev_callback)
+        self.next_button.clicked.connect(next_callback)

@@ -3,11 +3,11 @@ from bs4 import BeautifulSoup
 import cloudscraper
 from loguru import logger
 from PySide6.QtWidgets import QVBoxLayout, QFrame, QLabel, QWidget, QPushButton, QStackedLayout
-from PySide6.QtCore import Qt, Signal, QSize, QTimer, QEvent
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtMultimedia import QMediaPlayer
 
 from turtlelauncher.utils.globals import DATA
-from turtlelauncher.widgets.video_player import VideoPlayer
+from turtlelauncher.widgets.video_player import OpenCVVideoPlayer
 
 class TurtleTVWidget(QFrame):
     video_changed = Signal(int)
@@ -15,7 +15,6 @@ class TurtleTVWidget(QFrame):
     def __init__(self):
         super().__init__()
         self.setFrameStyle(QFrame.NoFrame)
-        self.setMouseTracking(True)
         self.videos = self.load_video_data()
         self.current_index = 0
         self.next_video_url = None
@@ -24,21 +23,9 @@ class TurtleTVWidget(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Video container
-        self.video_container = QWidget()
-        self.video_container.setMouseTracking(True)
-        self.video_layout = QStackedLayout(self.video_container)
-        self.video_layout.setStackingMode(QStackedLayout.StackAll)
-        self.layout.addWidget(self.video_container)
-
-        self.video_player = VideoPlayer()
-        self.video_layout.addWidget(self.video_player)
-
-        # Navigation buttons
-        self.prev_button = self.create_nav_button("←", self.previous_video)
-        self.next_button = self.create_nav_button("→", self.next_video)
-        self.video_layout.addWidget(self.prev_button)
-        self.video_layout.addWidget(self.next_button)
+        # Use OpenCVVideoPlayer
+        self.video_player = OpenCVVideoPlayer()
+        self.layout.addWidget(self.video_player)
 
         self.error_label = QLabel()
         self.error_label.setAlignment(Qt.AlignCenter)
@@ -50,16 +37,13 @@ class TurtleTVWidget(QFrame):
             border-radius: 8px;
         """)
         self.error_label.hide()
-        self.video_layout.addWidget(self.error_label)
+        self.layout.addWidget(self.error_label)
 
-        self.video_player.media_player.errorOccurred.connect(self.handle_media_error)
-        self.video_player.media_player.mediaStatusChanged.connect(self.handle_media_status_change)
+        # Connect navigation buttons
+        self.video_player.connect_navigation_buttons(self.previous_video, self.next_video)
 
         self.load_current_video()
-        
-        # Install event filter to catch mouse events
-        self.video_container.installEventFilter(self)  # Fixed typo here
-    
+
     def handle_media_error(self, error, error_string):
         logger.error(f"Media player error: {error} - {error_string}")
         self.show_error(f"Video playback error: {error_string}")
@@ -148,6 +132,7 @@ class TurtleTVWidget(QFrame):
             self.next_video_url = None
         else:
             self.load_current_video()
+
     
     def create_nav_button(self, text, callback):
         button = QPushButton(text)
@@ -167,55 +152,20 @@ class TurtleTVWidget(QFrame):
         """)
         return button
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.adjust_video_size()
+
     def adjust_video_size(self):
-        # Set the video container to fill the entire widget
         self.video_container.setGeometry(self.rect())
-
-        # Calculate the aspect ratio of the video
-        video_aspect_ratio = 16 / 9  # Assuming 16:9 aspect ratio, adjust if needed
-
-        # Calculate the maximum size that fits while maintaining aspect ratio
-        available_width = self.width()
-        available_height = self.height()
-        if available_width / available_height > video_aspect_ratio:
-            # Width is the limiting factor
-            video_width = available_height * video_aspect_ratio
-            video_height = available_height
-        else:
-            # Height is the limiting factor
-            video_width = available_width
-            video_height = available_width / video_aspect_ratio
-
-        # Set the size of the video player
-        self.video_player.setFixedSize(QSize(int(video_width), int(video_height)))
-
-        # Center the video player within the container
-        x = (available_width - video_width) // 2
-        y = (available_height - video_height) // 2
-        self.video_player.move(int(x), int(y))
+        self.video_player.setGeometry(self.rect())
 
         # Adjust the navigation buttons
         button_size = QSize(40, 100)
         self.prev_button.setFixedSize(button_size)
         self.next_button.setFixedSize(button_size)
-        self.prev_button.move(int(x), int(y + (video_height - button_size.height()) // 2))
-        self.next_button.move(int(x + video_width - button_size.width()), int(y + (video_height - button_size.height()) // 2))
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.adjust_video_size()
+        self.prev_button.move(0, (self.height() - button_size.height()) // 2)
+        self.next_button.move(self.width() - button_size.width(), (self.height() - button_size.height()) // 2)
 
     def sizeHint(self):
         return QSize(640, 360)  # 16:9 aspect ratio
-
-    def eventFilter(self, obj, event):
-        if obj == self.video_container:
-            if event.type() == QEvent.Enter:
-                self.video_player.controls_widget.setVisible(True)
-                self.video_player.fade_timer.start(3000)
-            elif event.type() == QEvent.Leave:
-                self.video_player.fade_out_controls()
-            elif event.type() == QEvent.MouseMove:
-                self.video_player.controls_widget.setVisible(True)
-                self.video_player.fade_timer.start(3000)
-        return super().eventFilter(obj, event)
