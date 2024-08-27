@@ -1,13 +1,13 @@
 from turtlelauncher.dialogs.base import BaseDialog
-from PySide6.QtWidgets import QProgressBar, QLabel, QApplication
-from PySide6.QtCore import Qt, QTimer, QPoint
-from pathlib import Path
+from PySide6.QtWidgets import QProgressBar, QLabel
+from PySide6.QtCore import Qt, QTimer
 from loguru import logger
+from turtlelauncher.utils.globals import IMAGES
 
 class GameLaunchDialog(BaseDialog):
     def __init__(self, parent=None):
         self.master = parent
-        icon_path = Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png"
+        icon_path = IMAGES / "turtle_wow_icon.png"
         super().__init__(
             parent=parent,
             title="Game Running",
@@ -33,7 +33,7 @@ class GameLaunchDialog(BaseDialog):
         self.content_layout.addWidget(self.progress_bar)
 
         # Status Message
-        self.status_label = QLabel("Game is running...", self.content_widget)
+        self.status_label = QLabel(self.tr("Game is running..."), self.content_widget)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setObjectName("status-label")
         self.status_label.setWordWrap(True)
