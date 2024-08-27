@@ -1,4 +1,5 @@
 from loguru import logger
+import os
 
 def has_directory_permissions(directory):
         logger.info(f"Checking permissions for directory: {directory}")

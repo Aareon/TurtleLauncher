@@ -75,19 +75,19 @@ class LauncherWidget(QWidget):
         progress_info_layout = QHBoxLayout()
         progress_info_layout.setContentsMargins(0, 0, 0, 5)
 
-        self.progress_label = GradientLabel("Waiting...", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        self.progress_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
         self.progress_label.setFont(QFont(font_family, 14))
         self.progress_label.setMinimumWidth(300)  # Ensure enough width for the label
         progress_info_layout.addWidget(self.progress_label)
 
         progress_info_layout.addStretch()
 
-        self.speed_label = QLabel("0 MB/s")
+        self.speed_label = QLabel("")
         self.speed_label.setFont(QFont(font_family, 10))
         self.speed_label.setStyleSheet("color: #ffd700;")
         progress_info_layout.addWidget(self.speed_label)
 
-        self.total_size_label = QLabel("Total size: 0 MB")
+        self.total_size_label = QLabel("")
         self.total_size_label.setFont(QFont(font_family, 10))
         self.total_size_label.setStyleSheet("color: #ffd700;")
         progress_info_layout.addWidget(self.total_size_label)
@@ -115,12 +115,11 @@ class LauncherWidget(QWidget):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
 
-        self.settings_button = ImageButton("PurpleButton.png", "Settings", "Alagard")
+        self.settings_button = ImageButton("PurpleButton.png", "", "Alagard")
         
         # Modify the play_button to be a download/stop/play button
-        self.action_button = ImageButton("PurpleButton.png", "Download", "Alagard")
+        self.action_button = ImageButton("PurpleButton.png", "", "Alagard")
         self.action_button.clicked.connect(self.on_action_button_clicked)
-
 
         button_layout.addWidget(self.settings_button)
         button_layout.addStretch()
@@ -146,6 +145,16 @@ class LauncherWidget(QWidget):
         self.speed_label.hide()
         self.total_size_label.hide()
 
+        # Update translations
+        self.update_translations()
+    
+    def update_translations(self):
+        self.progress_label.setText(self.tr("Waiting..."))
+        self.speed_label.setText(self.tr("0 MB/s"))
+        self.total_size_label.setText(self.tr("Total size: 0 MB"))
+        self.settings_button.setText(self.tr("Settings"))
+        self.update_action_button_state()
+
     def paintEvent(self, event):
         option = QStyleOption()
         option.initFrom(self)
@@ -155,12 +164,13 @@ class LauncherWidget(QWidget):
         super().paintEvent(event)
 
     def on_action_button_clicked(self):
-        if self.action_button.text() == "Download":
-            self.progress_label.setText("Waiting...")
+        current_text = self.action_button.text()
+        if current_text == self.tr("Download"):
+            self.progress_label.setText(self.tr("Waiting..."))
             self.download_button_clicked.emit()
-        elif self.action_button.text() == "Stop":
+        elif current_text == self.tr("Stop"):
             self.stop_download()
-        elif self.action_button.text() == "Play":
+        elif current_text == self.tr("Play"):
             if not self.config.selected_binary:
                 self.open_binary_selection_dialog()
             else:
@@ -173,14 +183,14 @@ class LauncherWidget(QWidget):
     def update_progress(self, percent, speed, state):
         percent_int = int(float(percent))
         if state == "extracting":
-            if not self.progress_label.text().startswith("Extracting"):
+            if not self.progress_label.text().startswith(self.tr("Extracting")):
                 logger.info("Setting progress_label status to 'Extracting...'")
-            self.progress_label.setText(f"Extracting... {percent_int}%")
+            self.progress_label.setText(self.tr("Extracting... {}%").format(percent_int))
             self.speed_label.hide()
             self.total_size_label.hide()
             self.progress_bar.show()  # Ensure progress bar is visible during extraction
         elif state == "downloading":
-            self.progress_label.setText(f"Downloading... {percent_int}%")
+            self.progress_label.setText(self.tr("Downloading... {}%").format(percent_int))
             self.speed_label.show()
             self.speed_label.setText(speed)
             self.total_size_label.show()
@@ -189,7 +199,7 @@ class LauncherWidget(QWidget):
 
     @Slot()
     def on_download_completed(self):
-        self.progress_label.setText("Download completed. Preparing for extraction...")
+        self.progress_label.setText(self.tr("Download completed. Preparing for extraction..."))
         self.speed_label.hide()
         self.progress_bar.setValue(100)
         self.total_size_label.hide()
@@ -248,18 +258,26 @@ class LauncherWidget(QWidget):
         
         # Show or hide speed label based on download status
         self.speed_label.setVisible(is_downloading)
+    
+    def update_action_button_state(self):
+        if self.check_game_installation_callback():
+            self.action_button.setText(self.tr("Play"))
+        else:
+            self.action_button.setText(self.tr("Download"))
 
     def set_play_mode(self):
-        self.action_button.setText("Play")
+        self.action_button.setText(self.tr("Play"))
         self.is_downloading = False
+        self.update_action_button_state()
+
 
     def start_download(self, url, extract_path):
-        self.progress_label.setText("Preparing download...")
+        self.progress_label.setText(self.tr("Preparing download..."))
         self.speed_label.setText("")
         self.speed_label.show()
-        self.total_size_label.setText("Total size: Calculating...")
+        self.total_size_label.setText(self.tr("Total size: Calculating..."))
         self.progress_bar.setValue(0)
-        self.action_button.setText("Stop")
+        self.action_button.setText(self.tr("Stop"))
         self.is_downloading = True
         logger.debug(f"Starting download from {url} to {extract_path}")
         
@@ -277,17 +295,17 @@ class LauncherWidget(QWidget):
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
             self.download_utility.cancel_download()
-            self.progress_label.setText("Download stopped")
+            self.progress_label.setText(self.tr("Download stopped"))
             self.progress_bar.setValue(0)
             self.progress_bar.stop_particle_effect()
-            self.action_button.setText("Download")
+            self.action_button.setText(self.tr("Download"))
             self.is_downloading = False
             logger.info("Download stopped by user")
         else:
             logger.info("Download stop cancelled by user")
 
     def display_version_info(self, version):
-        version_str = f"Turtle WoW Version: {version}"
+        version_str = self.tr("Turtle WoW Version: {}").format(version)
         self.version_label.setText(version_str)
         self.version_label.show()
         self.total_size_label.hide()

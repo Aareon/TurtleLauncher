@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 from loguru import logger
-from turtlelauncher.utils.locale import initialize_locale
 
 
 class Config:
@@ -14,9 +13,7 @@ class Config:
         self.transparency_disabled = False
         self.minimize_on_launch = False
         self.clear_cache_on_launch = False
-        self.language = "en"
-        
-        self.locale = initialize_locale(self)
+        self.language = "English"
 
         self._loaded = False
 
@@ -61,7 +58,7 @@ class Config:
             'transparency_disabled': self.transparency_disabled,
             'minimize_on_launch': self.minimize_on_launch,
             'clear_cache_on_launch': self.clear_cache_on_launch,
-            "language": self.language
+            'language': self.language
         }
         with open(self.config_path, 'w') as f:
             json.dump(config, f)
@@ -81,7 +78,7 @@ class Config:
             self.transparency_disabled = config.get('transparency_disabled', False)
             self.minimize_on_launch = config.get('minimize_on_launch', False)
             self.clear_cache_on_launch = config.get('clear_cache_on_launch', False)
-            self.language = config.get("language", "English")
+            self.language = config.get('language', 'English')
             logger.debug(f"Config loaded - Game install directory: {self.game_install_dir}")
             logger.debug(f"Config loaded - Selected binary: {self.selected_binary}")
             logger.debug(f"Config loaded - Particles disabled: {self.particles_disabled}")

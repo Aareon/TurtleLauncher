@@ -21,7 +21,7 @@ from turtlelauncher.dialogs.settings import SettingsDialog
 class TurtleWoWLauncher(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Turtle WoW Launcher")
+        self.setWindowTitle(self.tr("Turtle WoW Launcher"))
         self.setMinimumSize(1200, 800)
         
         self.installEventFilter(self)
@@ -99,7 +99,7 @@ class TurtleWoWLauncher(QMainWindow):
     def check_first_launch(self):
         if not self.config.exists() or not self.config.valid() or not check_game_installation(self.config.game_install_dir, self.config.selected_binary):
             logger.info("No valid game installation found. Setting Download button.")
-            self.launcher_widget.action_button.setText(self.config.locale.get_translation("download"))
+            self.launcher_widget.action_button.setText(self.tr("Download"))
         else:
             logger.info("Valid game installation found.")
             self.launcher_widget.set_play_mode()
@@ -116,10 +116,10 @@ class TurtleWoWLauncher(QMainWindow):
         
         if result == QDialog.DialogCode.Accepted:
             logger.debug("User chose to select existing installation")
-            self.select_installation_directory("Select Existing Installation Directory")
+            self.select_installation_directory(self.tr("Select Existing Installation Directory"))
         elif result == QDialog.DialogCode.Rejected:
             logger.debug("User chose to download the game")
-            self.select_installation_directory("Select Download Directory")
+            self.select_installation_directory(self.tr("Select Download Directory"))
         elif result == FirstLaunchDialog.CLOSED:
             logger.debug("First launch dialog was closed")
             self.cancel_setup()
@@ -137,10 +137,10 @@ class TurtleWoWLauncher(QMainWindow):
         
         if result == QDialog.DialogCode.Accepted:
             logger.debug("User chose to select existing installation")
-            self.select_installation_directory(self.config.locale.get_translation("select_existing_installation_directory"))
+            self.select_installation_directory(self.tr("Select Existing Installation Directory"))
         elif result == QDialog.DialogCode.Rejected:
             logger.debug("User chose to download the game")
-            self.select_installation_directory(self.config.locale.get_translation("select_download_directory"))
+            self.select_installation_directory(self.tr("Select Download Directory"))
         else:
             logger.debug("First launch setup canceled")
             self.cancel_setup()
@@ -152,8 +152,8 @@ class TurtleWoWLauncher(QMainWindow):
     def cancel_setup(self):
         logger.debug("Cancelling setup")
         self.launcher_widget.hide_progress_widgets()
-        self.launcher_widget.progress_label.setText(self.config.locale.get_translation("setup_cancelled"))
-        self.launcher_widget.action_button.setText(self.config.locale.get_translation("download"))
+        self.launcher_widget.progress_label.setText(self.tr("Setup cancelled"))
+        self.launcher_widget.action_button.setText(self.tr("Download"))
         QApplication.processEvents()
         self.update()
 
@@ -164,7 +164,7 @@ class TurtleWoWLauncher(QMainWindow):
             self.launcher_widget.display_version_info(version)
         else:
             logger.warning("Game version could not be detected")
-            self.launcher_widget.display_version_info(self.config.locale.get_translation("unknown"))
+            self.launcher_widget.display_version_info(self.tr("Unknown"))
     
     def disable_main_window(self):
         self.setEnabled(False)
@@ -173,7 +173,7 @@ class TurtleWoWLauncher(QMainWindow):
         self.setEnabled(True)
 
     def select_installation_directory(self, dialog_title):
-        is_existing_install = dialog_title == self.config.locale.get_translation("select_existing_installation_directory")
+        is_existing_install = dialog_title == self.tr("Select Existing Installation Directory")
         install_dir_dialog = InstallationDirectoryDialog(self, is_existing_install)
         install_dir_dialog.setWindowTitle(dialog_title)
         install_dir_dialog.setWindowModality(Qt.WindowModal)
@@ -195,8 +195,8 @@ class TurtleWoWLauncher(QMainWindow):
                     logger.debug("Invalid installation directory selected")
                     QMessageBox.warning(
                         self,
-                        self.config.locale.get_translation("invalid_installation"),
-                        self.config.locale.get_translation("invalid_installation_message"))
+                        self.tr("Invalid Installation"),
+                        self.tr("The selected directory does not contain a valid Turtle WoW installation. Please choose a different directory or download a new copy of the game."))
                     self.setup_first_launch()
             else:
                 self.launcher_widget.show_progress_widgets()
@@ -228,8 +228,8 @@ class TurtleWoWLauncher(QMainWindow):
                     logger.debug("Invalid installation directory selected")
                     QMessageBox.warning(
                         self,
-                        self.config.locale.get_translation("invalid_installation"),
-                        self.config.locale.get_translation("invalid_installation_message")
+                        self.tr("Invalid Installation"),
+                        self.tr("The selected directory does not contain a valid Turtle WoW installation.")
                     )
                     self.setup_first_launch()
             else:
@@ -291,13 +291,36 @@ class TurtleWoWLauncher(QMainWindow):
                 border: none;
             }
         """)
+
+         # Update translations at the end of setup
+        self.update_translations()
+
+    def update_translations(self):
+        self.setWindowTitle(self.tr("Turtle WoW Launcher"))
+        
+        # Update launcher widget texts
+        self.launcher_widget.update_translations()
+        
+        # Update tray icon menu texts
+        if hasattr(self, 'tray_icon'):
+            show_action = self.tray_icon.contextMenu().actions()[0]
+            quit_action = self.tray_icon.contextMenu().actions()[1]
+            show_action.setText(self.tr("Show"))
+            quit_action.setText(self.tr("Quit"))
     
     def open_settings(self):
         logger.debug("Opening settings dialog")
         settings_dialog = SettingsDialog(self, check_game_installation(self.config.game_install_dir, self.config.selected_binary), self.config)
         settings_dialog.particles_setting_changed.connect(self.launcher_widget.on_particles_setting_changed)
+        settings_dialog.language_changed.connect(self.on_language_changed)
         settings_dialog.exec()
         logger.debug("Settings dialog closed")
+    
+    def on_language_changed(self, language):
+        logger.info(f"Updating launcher language to: {language}")
+        self.config.language = language
+        self.config.save()
+        self.update_translations()
 
     def on_download_button_clicked(self):
         logger.debug("Download button clicked")
@@ -311,9 +334,9 @@ class TurtleWoWLauncher(QMainWindow):
         self.tray_icon.setIcon(self.windowIcon())
         
         tray_menu = QMenu()
-        show_action = tray_menu.addAction(self.config.locale.get_translation("show"))
+        show_action = tray_menu.addAction(self.tr("Show"))
         show_action.triggered.connect(self.show)
-        quit_action = tray_menu.addAction(self.config.locale.get_translation("quit"))
+        quit_action = tray_menu.addAction(self.tr("Quit"))
         quit_action.triggered.connect(self.quit_application)
         
         self.tray_icon.setContextMenu(tray_menu)
@@ -397,37 +420,36 @@ class TurtleWoWLauncher(QMainWindow):
                 if version:
                     logger.info(f"Game version detected: {version}")
                     self.launcher_widget.display_version_info(version)
-                    InstallationStatusDialog(self, "success", self.config.locale.get_translation("successful_install_message").format(version)).exec()
+                    InstallationStatusDialog(self, "success", self.tr("Installation successful! Turtle WoW version {} is now ready to play.").format(version)).exec()
                 else:
                     logger.warning("Game version could not be detected")
-                    InstallationStatusDialog(self, "warning", self.config.locale.get_translation("install_complete_unknown_version")).exec()
+                    InstallationStatusDialog(self, "warning", self.tr("Installation complete, but the game version could not be detected.")).exec()
             else:
                 logger.warning("Invalid or incomplete game installation after extraction")
-                InstallationStatusDialog(self, "error", self.config.locale.get_translation("incomplete_install")).exec()
+                InstallationStatusDialog(self, "error", self.tr("The installation appears to be incomplete or invalid. Please try the installation process again.")).exec()
                 self.setup_first_launch()  # Restart the setup process
         else:
             logger.error("Extraction completed but no folder name was provided")
-            InstallationStatusDialog(self, "error", self.config.locale.get_translation("cannot_identify_install_folder")).exec()
+            InstallationStatusDialog(self, "error", self.tr("Cannot identify the installation folder. Please try the installation process again.")).exec()
             self.setup_first_launch()  # Restart the setup process
 
     @Slot(str)
     def on_error(self, error_message):
         logger.error(f"Error occurred: {error_message}")
-        InstallationStatusDialog(self, "error", self.config.locale.get_translation("an_error_occurred").format(error_message)).exec()
+        InstallationStatusDialog(self, "error", self.tr("An error occurred: {}").format(error_message)).exec()
 
     def showEvent(self, event):
         super().showEvent(event)
         logger.debug("Main window shown")
     
     def closeEvent(self, event):
-        # TODO - This doesn't work as expected
         if self.download_utility.is_downloading:
             reply = QMessageBox.question(
-                self, 'Exit Confirmation',
-                "A download is in progress. Do you want to:\n\n"
+                self, self.tr('Exit Confirmation'),
+                self.tr("A download is in progress. Do you want to:\n\n"
                 "- Send the application to the system tray\n"
                 "- Cancel the download and exit\n"
-                "- Continue downloading",
+                "- Continue downloading"),
                 QMessageBox.StandardButton.Yes | 
                 QMessageBox.StandardButton.No | 
                 QMessageBox.StandardButton.Cancel,

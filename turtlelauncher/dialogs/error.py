@@ -11,15 +11,20 @@ class ErrorDialog(BaseDialog):
             modal=True,
             flags=Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
         )
+        self.update_translations()
 
     def setup_ui(self, title, message, icon_path):
         super().setup_ui(title, message, icon_path)
 
         # Add OK button
-        self.ok_button = QPushButton("OK", self.content_widget)
+        self.ok_button = QPushButton(self.content_widget)
         self.ok_button.setObjectName("ok-button")
         self.ok_button.clicked.connect(self.accept)
         self.content_layout.addWidget(self.ok_button)
+    
+    def update_translations(self):
+        self.setWindowTitle(self.tr("Error"))
+        self.ok_button.setText(self.tr("OK"))
 
     def generate_stylesheet(self, custom_styles=None):
         base_stylesheet = super().generate_stylesheet(custom_styles)

@@ -1,5 +1,5 @@
 from turtlelauncher.dialogs.base import BaseDialog
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog, QLabel, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog, QLabel, QComboBox, QTabWidget, QCheckBox
 from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from loguru import logger
 from turtlelauncher.utils.globals import TOOL_FOLDER, IMAGES
@@ -27,7 +27,7 @@ class SettingsDialog(BaseDialog):
         self.master = parent
         super().__init__(
             parent=self.master,
-            title=self.config.locale.get_translation("turtle_wow_settings"),
+            title=self.tr("Turtle WoW Settings"),
             message="",
             icon_path=str(icon_path),
             modal=True,
@@ -43,43 +43,87 @@ class SettingsDialog(BaseDialog):
         game_tab = QWidget()
         game_layout = QVBoxLayout(game_tab)
         game_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.clear_addon_settings_button = self.create_button(self.config.locale.get_translation("clear_addon_settings"), self.clear_addon_settings, game_layout)
-        self.clear_cache_button = self.create_button(self.config.locale.get_translation("clear_cache"), self.clear_cache, game_layout)
-        self.clear_chat_cache_button = self.create_button(self.config.locale.get_translation("clear_chat_cache"), self.clear_chat_cache, game_layout)
-        self.open_install_directory_button = self.create_button(self.config.locale.get_translation("clear_addon_settings"), self.open_install_directory, game_layout)
-        self.select_binary_button = self.create_button(self.config.locale.get_translation("select_binary_to_launch"), self.select_binary, game_layout)
-        tab_widget.addTab(game_tab, self.config.locale.get_translation("game"))
+        self.clear_addon_settings_button = self.create_button("", self.clear_addon_settings, game_layout)
+        self.clear_cache_button = self.create_button("", self.clear_cache, game_layout)
+        self.clear_chat_cache_button = self.create_button("", self.clear_chat_cache, game_layout)
+        self.open_install_directory_button = self.create_button("", self.open_install_directory, game_layout)
+        self.select_binary_button = self.create_button("", self.select_binary, game_layout)
+        tab_widget.addTab(game_tab, "")
 
         # Launcher Tab
         launcher_tab = QWidget()
         launcher_layout = QVBoxLayout(launcher_tab)
         launcher_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # Add language selection dropdown
-        language_label = QLabel(self.config.locale.get_translation("select_language"))
-        launcher_layout.addWidget(language_label)
+        self.language_label = QLabel()
+        launcher_layout.addWidget(self.language_label)
         self.language_combo = QComboBox()
-        self.language_combo.addItems(self.config.locale.get_available_languages())
+        available_languages = ["English"]
+        self.language_combo.addItems(available_languages)
+        
+        current_language_index = available_languages.index(self.config.language)
+        self.language_combo.setCurrentIndex(current_language_index)
+        
         self.language_combo.currentTextChanged.connect(self.on_language_changed)
         self.style_combo_box(self.language_combo)
         launcher_layout.addWidget(self.language_combo)
         
-        self.create_checkbox(self.config.locale.get_translation("disable_particles"), "particles_disabled", self.config.particles_disabled, launcher_layout)
-        self.create_checkbox(self.config.locale.get_translation("clear_cache_on_launch"), "clear_cache_on_launch", self.config.clear_cache_on_launch, launcher_layout)
-        self.create_checkbox(self.config.locale.get_translation("minimize_launcher_on_game_launch"), "minimize_on_launch", self.config.minimize_on_launch, launcher_layout)
+        self.particles_checkbox = self.create_checkbox("", "particles_disabled", self.config.particles_disabled, launcher_layout)
+        self.clear_cache_checkbox = self.create_checkbox("", "clear_cache_on_launch", self.config.clear_cache_on_launch, launcher_layout)
+        self.minimize_checkbox = self.create_checkbox("", "minimize_on_launch", self.config.minimize_on_launch, launcher_layout)
         
-        self.create_button(self.config.locale.get_translation("open_logs_folder"), self.open_logs_folder, launcher_layout)
-        tab_widget.addTab(launcher_tab, self.config.locale.get_translation("launcher"))
+        self.open_logs_button = self.create_button("", self.open_logs_folder, launcher_layout)
+        tab_widget.addTab(launcher_tab, "")
         
         # Fixes Tab
         fixes_tab = QWidget()
         fixes_layout = QVBoxLayout(fixes_tab)
         fixes_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.create_button(self.config.locale.get_translation("fix_black_screen"), self.fix_black_screen, fixes_layout)
-        self.create_button(self.config.locale.get_translation("fix_vanilla_tweaks_alt_tab"), self.fix_vanilla_tweaks_alt_tab, fixes_layout)
-        tab_widget.addTab(fixes_tab, self.config.locale.get_translation("fixes"))
+        self.fix_black_screen_button = self.create_button("", self.fix_black_screen, fixes_layout)
+        self.fix_vanilla_tweaks_button = self.create_button("", self.fix_vanilla_tweaks_alt_tab, fixes_layout)
+        tab_widget.addTab(fixes_tab, "")
 
         self.update_button_states()
+        self.update_translations()
+
+        self.update_button_states()
+    
+    def on_language_changed(self, language):
+        logger.info(f"Language changed to: {language}")
+        self.config.language = language
+        self.config.save()
+        self.language_changed.emit(language)
+        
+        # Update the dialog's translations
+        self.update_translations()
+    
+    def update_translations(self):
+        self.setWindowTitle(self.tr("Turtle WoW Settings"))
+        
+        # Update tab titles
+        tab_widget = self.findChild(QTabWidget)
+        if tab_widget:
+            tab_widget.setTabText(0, self.tr("Game"))
+            tab_widget.setTabText(1, self.tr("Launcher"))
+            tab_widget.setTabText(2, self.tr("Fixes"))
+        
+        # Update button texts
+        self.clear_addon_settings_button.setText(self.tr("Clear Addon Settings"))
+        self.clear_cache_button.setText(self.tr("Clear Cache"))
+        self.clear_chat_cache_button.setText(self.tr("Clear Chat Cache"))
+        self.open_install_directory_button.setText(self.tr("Open Install Directory"))
+        self.select_binary_button.setText(self.tr("Select Binary to Launch"))
+        self.open_logs_button.setText(self.tr("Open Logs Folder"))
+        self.fix_black_screen_button.setText(self.tr("Fix Black Screen"))
+        self.fix_vanilla_tweaks_button.setText(self.tr("Fix VanillaTweaks Alt-Tab"))
+        
+        # Update checkbox texts
+        self.particles_checkbox.setText(self.tr("Disable Particles"))
+        self.clear_cache_checkbox.setText(self.tr("Clear Cache on Launch"))
+        self.minimize_checkbox.setText(self.tr("Minimize Launcher on Game Launch"))
+        
+        # Update language label
+        self.language_label.setText(self.tr("Select Language"))
 
     def update_button_states(self):
         buttons = [
@@ -103,10 +147,13 @@ class SettingsDialog(BaseDialog):
         
         confirmation_dialog = GenericConfirmationDialog(
             self,
-            title="Confirm Action",
-            message=self.config.locale.get_translation("clear_addon_settings_confirm_message").split("\n"),
-            confirm_text=self.config.locale.get_translation("confirm_clear_yes"),
-            cancel_text=self.config.locale.get_translation("confirm_no"),
+            title=self.tr("Confirm Action"),
+            message=[
+                self.tr("Are you sure you want to clear all addon settings?"),
+                self.tr("This action cannot be undone.")
+            ],
+            confirm_text=self.tr("Yes, clear"),
+            cancel_text=self.tr("No, cancel"),
             icon_path=IMAGES / "turtle_wow_icon.png",
             custom_styles=custom_styles
         )
@@ -118,7 +165,7 @@ class SettingsDialog(BaseDialog):
             if wtf_path.exists():
                 if not any(wtf_path.iterdir()):
                     logger.warning("WTF folder is empty")
-                    show_warning_dialog(self, "Warning", self.config.locale.get_translation("addon_clear_wtf_folder_empty"))
+                    show_warning_dialog(self, self.tr("Warning"), self.tr("The WTF folder is already empty."))
                     return
 
                 try:
@@ -128,13 +175,13 @@ class SettingsDialog(BaseDialog):
                         elif item.is_dir():
                             shutil.rmtree(item)
                     logger.info("Successfully cleared addon settings")
-                    show_success_dialog(self, "Success", self.config.locale.get_translation("addon_clear_success"))
+                    show_success_dialog(self, self.tr("Success"), self.tr("Addon settings have been cleared successfully."))
                 except Exception as e:
                     logger.error(f"Error clearing addon settings: {str(e)}")
-                    show_error_dialog(self, "Error", self.config.locale.get_translation("addon_clear_error").format(str(e)))
+                    show_error_dialog(self, self.tr("Error"), self.tr("An error occurred while clearing addon settings: {}").format(str(e)))
             else:
                 logger.warning("WTF folder not found in the game installation directory")
-                show_warning_dialog(self, "Warning", self.config.locale.get_translation("wtf_folder_not_found"))
+                show_warning_dialog(self, self.tr("Warning"), self.tr("WTF folder not found in the game installation directory."))
         else:
             logger.debug("Addon settings clearing cancelled by user")
 
@@ -152,22 +199,22 @@ class SettingsDialog(BaseDialog):
         
         confirmation_dialog = GenericConfirmationDialog(
             self,
-            title="Confirm Action",
-            message=["Are you sure you want to clear the cache?", "This action cannot be undone."],
-            confirm_text="Yes, clear",
-            cancel_text="No, cancel",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
+            title=self.tr("Confirm Action"),
+            message=[self.tr("Are you sure you want to clear the cache?"), self.tr("This action cannot be undone.")],
+            confirm_text=self.tr("Yes, clear"),
+            cancel_text=self.tr("No, cancel"),
+            icon_path=IMAGES / "turtle_wow_icon.png",
             custom_styles=custom_styles
         )
         
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
             kind, message = clear_cache(self.config.game_install_dir)
             if kind == "warning":
-                show_warning_dialog(self, "Warning", message)
+                show_warning_dialog(self, self.tr("Warning"), message)
             elif kind == "success":
-                show_success_dialog(self, "Success", message)
+                show_success_dialog(self, self.tr("Success"), message)
             elif kind == "error":
-                show_error_dialog(self, "Error", message)
+                show_error_dialog(self, self.tr("Error"), message)
         else:
             logger.debug("Cache clearing cancelled by user")
     
@@ -249,9 +296,9 @@ class SettingsDialog(BaseDialog):
         config_wtf_path = Path(self.config.game_install_dir) / "WTF" / "Config.wtf"
 
         if not config_wtf_path.exists():
-            error_message = "Config.wtf file not found. Unable to apply Black Screen fix."
+            error_message = self.tr("Config.wtf file not found. Unable to apply Black Screen fix.")
             logger.error(error_message)
-            show_error_dialog(self, title="Error", message=error_message)
+            show_error_dialog(self, title=self.tr("Error"), message=error_message)
             return
 
         try:
@@ -285,25 +332,25 @@ class SettingsDialog(BaseDialog):
                 with open(config_wtf_path, 'w') as file:
                     file.writelines(lines)
                 logger.info("Successfully applied Black Screen fix")
-                show_success_dialog(self, "Success", "Black Screen fix has been applied successfully.")
+                show_success_dialog(self, self.tr("Success"), self.tr("Black Screen fix has been applied successfully."))
             else:
                 logger.info("Black Screen fix was already applied")
-                show_warning_dialog(self, "Info", "Black Screen fix was already applied. No changes were needed.")
+                show_warning_dialog(self, self.tr("Info"), self.tr("Black Screen fix was already applied. No changes were needed."))
 
         except Exception as e:
-            error_message = f"An error occurred while applying Black Screen fix: {str(e)}"
+            error_message = self.tr("An error occurred while applying Black Screen fix: {}").format(str(e))
             logger.error(error_message)
-            show_error_dialog(self, title="Error", message=error_message)
+            show_error_dialog(self, title=self.tr("Error"), message=error_message)
 
     def fix_vanilla_tweaks_alt_tab(self):
         logger.debug("Fixing VanillaTweaks Alt-Tab")
         kind, message = vanilla_tweaks.fix_alt_tab(self.config.game_install_dir)
         if kind == "error":
-            show_error_dialog(self, "Error", message)
+            show_error_dialog(self, self.tr("Error"), message)
         elif kind == "success":
-            show_success_dialog(self, "Success", message)
+            show_success_dialog(self, self.tr("Success"), message)
         elif kind == "warning":
-            show_warning_dialog(self, "Warning", message)
+            show_warning_dialog(self, self.tr("Warning"), message)
     
     def sizeHint(self):
         return QSize(400, 500) # Set the initial size of the dialog
@@ -361,13 +408,6 @@ class SettingsDialog(BaseDialog):
             self.minimize_on_launch_changed.emit(state)
         elif setting_name == "clear_cache_on_launch":
             self.clear_cache_on_launch_changed.emit(state)
-    
-    def on_language_changed(self, language):
-        logger.info(f"Language changed to: {language}")
-        self.language_changed.emit(language)
-        # Here you would typically update the config and apply the language change
-        # self.config.language = language
-        # self.apply_language(language)
 
     def save_settings(self):
         particles_checked = self.get_setting("particles_disabled")

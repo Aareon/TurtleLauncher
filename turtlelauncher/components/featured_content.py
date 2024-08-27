@@ -30,7 +30,7 @@ class FeaturedContent(QFrame):
         font_family = QFontDatabase.applicationFontFamilies(font_id)[0] if font_id != -1 else "Arial"
         
         self.title = GradientLabel(
-            self.config.locale.get_translation("featured_content"),
+            "",
             QColor(255, 215, 0),
             QColor(255, 105, 180),
             intensity=2.0,
@@ -59,7 +59,6 @@ class FeaturedContent(QFrame):
             self.video_widget = YouTubeVideoWidget(video_data)
         elif content_type == "turtletv":
             self.video_widget = TurtleTVWidget()
-            self.title.setText(self.config.locale.get_translation("turtle_tv"))
 
         if self.video_widget:
             self.stacked_widget.addWidget(self.video_widget)
@@ -67,30 +66,21 @@ class FeaturedContent(QFrame):
         # Set current widget
         self.stacked_widget.setCurrentWidget(self.video_widget if self.video_widget else self.featured_image_label)
 
-        # Title Label
-        #self.title_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
-        #self.title_label.setAlignment(Qt.AlignCenter)
-        #self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
-        #self.title_label.setStyleSheet("background-color: transparent;")
-        #self.title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        #self.title_label.setMinimumWidth(200)
-        #self.layout.addWidget(self.title_label)
-
         self.setStyleSheet("""
             QLabel { background-color: transparent; }
         """)
-        
-        # if isinstance(self.video_widget, TurtleTVWidget):
-            # self.video_widget.video_changed.connect(self.update_description)
-        
-        # self.update_description(self.video_widget.current_index if self.video_widget else 0)
 
         logger.debug(f"FeaturedContent initialized with content_type: {content_type}")
 
+        self.update_translations()
+
+    def update_translations(self):
+        self.title.setText(self.tr("Featured Content"))
+        if isinstance(self.video_widget, TurtleTVWidget):
+            self.title.setText(self.tr("Turtle TV"))
+
     def update_description(self, index):
         if isinstance(self.video_widget, TurtleTVWidget):
-            # Now handled in `TurtleTVWidget`
-            #self.title_label.setText(self.video_widget.videos[index]["title"])
             pass
         logger.debug(f"Updated description for video index: {index}")
 

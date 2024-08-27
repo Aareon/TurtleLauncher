@@ -7,23 +7,23 @@ from PIL.ImageQt import ImageQt
 
 from turtlelauncher.dialogs.base import BaseDialog
 from turtlelauncher.utils.game_utils import get_exe_icon
-
-HERE = Path(__file__).parent
-ASSETS = HERE.parent.parent / "assets"
-FONTS = ASSETS / "fonts"
-DATA = HERE / "data"
-IMAGES = ASSETS / "images"
+from turtlelauncher.utils.globals import IMAGES
 
 
 class BinarySelectionDialog(BaseDialog):
     binary_selected = Signal(str)
 
     def __init__(self, config, parent=None):
-        super().__init__(parent, title="Select Turtle WoW Binary", icon_path=str(Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png"))
+        super().__init__(parent, title="Select Turtle WoW Binary", icon_path=IMAGES / "turtle_wow_icon.png")
         self.config = config
 
         self.setup_binary_list()
         self.setup_select_button()
+        self.update_translations()
+    
+    def update_translations(self):
+        self.setWindowTitle(self.tr("Select Turtle WoW Binary"))
+        self.select_button.setText(self.tr("Select"))
     
     def populate_binary_list(self):
         game_install_dir = self.config.game_install_dir
@@ -41,18 +41,18 @@ class BinarySelectionDialog(BaseDialog):
 
         for binary in available_binaries:
             if binary.stem == "WoW_tweaked":
-                description = "Tweaked WoW Client"
-            elif binary.strem == "VanillaFixes.exe":
-                description = "Eliminates stutter and animation lag"
+                description = self.tr("Tweaked WoW Client")
+            elif binary.stem == "VanillaFixes.exe":
+                description = self.tr("Eliminates stutter and animation lag")
             elif binary.stem == "WoWFoV":
-                description = "Field of View Fixes"
+                description = self.tr("Field of View Fixes")
             elif binary.stem == "WoW":
-                description = "Original WoW Client"
+                description = self.tr("Original WoW Client")
             else:
                 description = ""
             
             if binary == recommended_binary:
-                description += " (Recommended)"
+                description += self.tr(" (Recommended)")
                 icon = QIcon(str(IMAGES / "star.png"))
             else:
                 # Get the icon for the binary
@@ -97,7 +97,7 @@ class BinarySelectionDialog(BaseDialog):
         self.populate_binary_list()
     
     def setup_select_button(self):
-        self.select_button = QPushButton("Select", self.content_widget)
+        self.select_button = QPushButton(self.content_widget)
         self.select_button.setObjectName("select-button")
         self.select_button.clicked.connect(self.select_binary)
         self.content_layout.addWidget(self.select_button)
