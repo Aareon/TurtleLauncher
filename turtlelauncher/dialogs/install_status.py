@@ -6,15 +6,15 @@ class InstallationStatusDialog(BaseDialog):
     def __init__(self, parent=None, status="success", message=""):
         icon_path = IMAGES / "turtle_wow_icon.png"
         title = "Installation Complete" if status == "success" else "Installation Status"
-        self.status = status
-        super().__init__(parent, title=title, message=message, icon_path=icon_path)
+        self.status = status  # do not translate, as this is used for color selection key lookup
+        super().__init__(parent, title=self.tr(title), message=self.tr(message), icon_path=icon_path)
 
         self.add_ok_button()
         self.apply_status_styles()
 
     def add_ok_button(self):
         # OK button
-        self.ok_button = self.create_button("OK", self.accept, self.content_layout, "ok-button")
+        self.ok_button = self.create_button(self.tr("OK"), self.accept, self.content_layout, "ok-button")
 
     def apply_status_styles(self):
         status_color = self.get_status_color()
