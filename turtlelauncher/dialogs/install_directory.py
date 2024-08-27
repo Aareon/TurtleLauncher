@@ -1,17 +1,17 @@
 from PySide6.QtWidgets import QLabel, QFileDialog
 from PySide6.QtCore import Qt
-from pathlib import Path
 from loguru import logger
 from turtlelauncher.dialogs.base import BaseDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
 from turtlelauncher.utils.file_utils import has_directory_permissions
+from turtlelauncher.utils.globals import IMAGES
 
 
 class InstallationDirectoryDialog(BaseDialog):
     def __init__(self, parent=None, is_existing_install=False):
         title = "Choose Installation Directory"
         message = "Select where Turtle WoW is installed:" if is_existing_install else "Choose where you want to install Turtle WoW:"
-        icon_path = Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png"
+        icon_path = IMAGES / "turtle_wow_icon.png"
         
         super().__init__(parent, title, message, icon_path)
         
@@ -22,22 +22,22 @@ class InstallationDirectoryDialog(BaseDialog):
 
     def setup_additional_ui(self):
         # Selected directory label
-        self.selected_dir_label = QLabel("No directory selected", self.content_widget)
+        self.selected_dir_label = QLabel(self.tr("No directory selected"), self.content_widget)
         self.selected_dir_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.selected_dir_label.setObjectName("selected-dir-label")
         self.selected_dir_label.setWordWrap(True)
         self.content_layout.addWidget(self.selected_dir_label)
 
         # Select directory button
-        select_button = self.create_button("Select Directory", self.select_directory, self.content_layout, "select-button")
+        select_button = self.create_button(self.tr("Select Directory"), self.select_directory, self.content_layout, "select-button")  # noqa: F841
 
         # Confirm button
-        self.confirm_button = self.create_button("Confirm", self.accept, self.content_layout, "confirm-button")
+        self.confirm_button = self.create_button(self.tr("Confirm"), self.accept, self.content_layout, "confirm-button")
         self.confirm_button.setEnabled(False)  # Initially disable the Confirm button
 
     def select_directory(self):
         dialog_title = "Select Existing Turtle WoW Directory" if self.is_existing_install else "Select Installation Directory"
-        directory = QFileDialog.getExistingDirectory(self, dialog_title)
+        directory = QFileDialog.getExistingDirectory(self, self.tr(dialog_title))
         if directory:
             logger.info(f"Selected directory: {directory}")
             if not has_directory_permissions(directory):
@@ -52,11 +52,11 @@ class InstallationDirectoryDialog(BaseDialog):
         logger.debug(f"Confirming privileged directory: {directory}")
         confirmation_dialog = GenericConfirmationDialog(
             self,
-            title="Warning: Limited Permissions",
-            message=f"You may have limited permissions in the selected directory: {directory}\n\nThe application might not function correctly without full read, write, and execute permissions. Do you want to proceed?",
-            confirm_text="Yes, I understand",
-            cancel_text="No, I want to choose another directory",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
+            title=self.tr("Warning: Limited Permissions"),
+            message=self.tr("You may have limited permissions in the selected directory: {}\n\nThe application might not function correctly without full read, write, and execute permissions. Do you want to proceed?").format(directory),
+            confirm_text=self.tr("Yes, I understand"),
+            cancel_text=self.tr("No, I want to choose another directory"),
+            icon_path=IMAGES / "turtle_wow_icon.png",
         )
         result = confirmation_dialog.exec() == GenericConfirmationDialog.Accepted
         logger.debug(f"Privileged directory confirmation result: {result}")
@@ -64,7 +64,7 @@ class InstallationDirectoryDialog(BaseDialog):
 
     def set_selected_directory(self, directory):
         self.selected_directory = directory
-        self.selected_dir_label.setText(f"Selected: {directory}")
+        self.selected_dir_label.setText(self.tr("Selected: {}").format(directory))
         self.confirm_button.setEnabled(True)
         logger.debug(f"Selected {'existing' if self.is_existing_install else 'installation'} directory: {directory}")
 
