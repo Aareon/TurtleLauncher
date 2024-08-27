@@ -71,7 +71,7 @@ class VideoWidget(QWidget):
             self.video_loaded.emit()
         else:
             logger.error("Failed to load video iframe")
-            self.error_occurred.emit("Failed to load video")
+            self.error_occurred.emit(self.tr("Failed to load video"))
 
     def sizeHint(self):
         return QSize(1280, 1024)

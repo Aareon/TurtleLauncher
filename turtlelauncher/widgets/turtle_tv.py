@@ -85,7 +85,7 @@ class TurtleTVWidget(QFrame):
 
     def load_current_video(self):
         if not self.videos:
-            self.show_error("No videos available")
+            self.show_error(self.tr("No videos available"))
             return
         current_video = self.videos[self.current_index]
         self.video_player.load_video(current_video["url"])
