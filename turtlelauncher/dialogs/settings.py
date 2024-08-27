@@ -1,5 +1,5 @@
 from turtlelauncher.dialogs.base import BaseDialog
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog, QLabel, QComboBox, QTabWidget, QCheckBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QDialog, QLabel, QComboBox, QTabWidget
 from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from loguru import logger
 from turtlelauncher.utils.globals import TOOL_FOLDER, IMAGES
