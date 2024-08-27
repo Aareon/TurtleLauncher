@@ -43,7 +43,9 @@
         "addon_clear_wtf_folder_empty": "The WTF folder is already empty. No addon settings to clear.",
         "addon_clear_success": "Addon settings have been cleared successfully.",
         "addon_clear_error": "An error occurred while clearing addon settings: {}",
-        "wtf_folder_not_found": "WTF folder not found in the game installation directory. No addon settings to clear."
+        "wtf_folder_not_found": "WTF folder not found in the game installation directory. No addon settings to clear.",
+        "turtle_wow_settings": "Turtle WoW Settings",
+        "clear_chat_cache": "Clear Chat Cache"
     },
     "Español": {
         "settings": "Configuración",
@@ -85,7 +87,10 @@
         "confirm_no": "No, cancelar",
         "addon_clear_wtf_folder_empty": "La carpeta WTF ya está vacía. No hay configuraciones de addon para borrar.",
         "addon_clear_success": "La configuración del addon se ha borrado correctamente.",
-        "addon_clear_error": "Ha ocurrido un error al borrar la configuración del addon: {}"
+        "addon_clear_error": "Ha ocurrido un error al borrar la configuración del addon: {}",
+        "wtf_folder_not_found": "Carpeta WTF no encontrada en el directorio de instalación del juego. No hay configuraciones de addon para borrar.",
+        "turtle_wow_settings": "Configuración de Turtle WoW",
+        "clear_chat_cache": "Borrar Cache de Chat"
     },
     "Français": {
         "settings": "Paramètres",
@@ -127,6 +132,9 @@
         "confirm_no": "Non, annuler",
         "addon_clear_wtf_folder_empty": "Le dossier WTF est déjà vide. Aucun paramètre d'addon à effacer.",
         "addon_clear_success": "Les paramètres de l'addon ont été effacés avec succès.",
-        "addon_clear_error": "Une erreur s'est produite lors de l'effacement des paramètres de l'addon: {}"
+        "addon_clear_error": "Une erreur s'est produite lors de l'effacement des paramètres de l'addon: {}",
+        "wtf_folder_not_found": "Dossier WTF non trouvé dans le répertoire d'installation du jeu. Aucun paramètre d'addon à effacer.",
+        "turtle_wow_settings": "Paramètres de Turtle WoW",
+        "clear_chat_cache": "Effacer le cache du chat"
     }
 }

@@ -27,7 +27,7 @@ class SettingsDialog(BaseDialog):
         self.master = parent
         super().__init__(
             parent=self.master,
-            title="Turtle WoW Settings",
+            title=self.config.locale.get_translation("turtle_wow_settings"),
             message="",
             icon_path=str(icon_path),
             modal=True,
@@ -45,6 +45,7 @@ class SettingsDialog(BaseDialog):
         game_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.clear_addon_settings_button = self.create_button(self.config.locale.get_translation("clear_addon_settings"), self.clear_addon_settings, game_layout)
         self.clear_cache_button = self.create_button(self.config.locale.get_translation("clear_cache"), self.clear_cache, game_layout)
+        self.clear_chat_cache_button = self.create_button(self.config.locale.get_translation("clear_chat_cache"), self.clear_chat_cache, game_layout)
         self.open_install_directory_button = self.create_button(self.config.locale.get_translation("clear_addon_settings"), self.open_install_directory, game_layout)
         self.select_binary_button = self.create_button(self.config.locale.get_translation("select_binary_to_launch"), self.select_binary, game_layout)
         tab_widget.addTab(game_tab, self.config.locale.get_translation("game"))
@@ -139,6 +140,40 @@ class SettingsDialog(BaseDialog):
 
     def clear_cache(self):
         logger.debug("Clearing cache")
+        
+        custom_styles = {
+            "#message-label-0": {
+                "color": "#FFD700"
+            },
+            "#message-label-1": {
+                "color": "#FF69B4"
+            }
+        }
+        
+        confirmation_dialog = GenericConfirmationDialog(
+            self,
+            title="Confirm Action",
+            message=["Are you sure you want to clear the cache?", "This action cannot be undone."],
+            confirm_text="Yes, clear",
+            cancel_text="No, cancel",
+            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
+            custom_styles=custom_styles
+        )
+        
+        if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
+            kind, message = clear_cache(self.config.game_install_dir)
+            if kind == "warning":
+                show_warning_dialog(self, "Warning", message)
+            elif kind == "success":
+                show_success_dialog(self, "Success", message)
+            elif kind == "error":
+                show_error_dialog(self, "Error", message)
+        else:
+            logger.debug("Cache clearing cancelled by user")
+    
+    def clear_chat_cache(self):
+        logger.debug("Clearing chat cache. TODO!")
+        return
         
         custom_styles = {
             "#message-label-0": {
