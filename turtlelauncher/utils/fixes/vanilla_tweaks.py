@@ -1,9 +1,7 @@
 import re
 from pathlib import Path
 from loguru import logger
-from turtlelauncher.dialogs.error import ErrorDialog
-from turtlelauncher.dialogs import show_success_dialog
-
+from turtlelauncher.utils.errors import ResultKind
 
 def fix_alt_tab(game_install_dir: Path):
     dxvk_conf_path = Path(game_install_dir) / "dxvk.conf"
@@ -11,7 +9,7 @@ def fix_alt_tab(game_install_dir: Path):
     if not dxvk_conf_path.exists():
         error_message = "dxvk.conf file not found. Unable to apply VanillaTweaks Alt-Tab fix."
         logger.error(error_message)
-        return "error", error_message
+        return ResultKind.ERROR, error_message
 
     try:
         with open(dxvk_conf_path, 'r') as file:
@@ -42,12 +40,12 @@ def fix_alt_tab(game_install_dir: Path):
             with open(dxvk_conf_path, 'w') as file:
                 file.writelines(dxvk_lines)
             logger.info("Successfully applied VanillaTweaks Alt-Tab fix")
-            return "success", "VanillaTweaks Alt-Tab fix has been applied successfully."
+            return ResultKind.SUCCESS, "VanillaTweaks Alt-Tab fix has been applied successfully."
         else:
             logger.info("VanillaTweaks Alt-Tab fix was already applied")
-            return "warning", "VanillaTweaks Alt-Tab fix was already applied. No changes were needed."
+            return ResultKind.WARNING, "VanillaTweaks Alt-Tab fix was already applied. No changes were needed."
 
     except Exception as e:
         error_message = f"An error occurred while applying VanillaTweaks Alt-Tab fix: {str(e)}"
         logger.error(error_message)
-        return "error", error_message
+        return ResultKind.ERROR, error_message

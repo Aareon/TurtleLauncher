@@ -8,7 +8,7 @@ from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
 from turtlelauncher.dialogs import show_error_dialog, show_success_dialog, show_warning_dialog
 from turtlelauncher.utils.fixes import vanilla_tweaks, base_fixes
-from pathlib import Path
+from turtlelauncher.utils.errors import ResultKind
 import os
 
 
@@ -160,12 +160,12 @@ class SettingsDialog(BaseDialog):
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
             logger.debug("Clearing addon settings")
             result_kind, result_message = base_fixes.clear_addon_settings(self.config.game_install_dir)
-            if result_kind == "warning":
-                show_warning_dialog(self, self.tr(result_kind), self.tr(result_message))
-            elif result_kind == "success":
-                show_success_dialog(self, self.tr(result_kind), self.tr(result_message))
-            elif result_kind == "error":
-                show_error_dialog(self, self.tr(result_kind), self.tr(result_message))
+            if result_kind == ResultKind.WARNING:
+                show_warning_dialog(self, self.tr("Warning"), self.tr(result_message))
+            elif result_kind == ResultKind.SUCCESS:
+                show_success_dialog(self, self.tr("Success"), self.tr(result_message))
+            elif result_kind == ResultKind.ERROR:
+                show_error_dialog(self, self.tr("Error"), self.tr(result_message))
         else:
             logger.debug("Addon settings clearing cancelled by user")
 
@@ -193,11 +193,11 @@ class SettingsDialog(BaseDialog):
         
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
             kind, message = clear_cache(self.config.game_install_dir)
-            if kind == "warning":
+            if kind == ResultKind.WARNING:
                 show_warning_dialog(self, self.tr("Warning"), message)
-            elif kind == "success":
+            elif kind == ResultKind.SUCCESS:
                 show_success_dialog(self, self.tr("Success"), message)
-            elif kind == "error":
+            elif kind == ResultKind.ERROR:
                 show_error_dialog(self, self.tr("Error"), message)
         else:
             logger.debug("Cache clearing cancelled by user")
@@ -249,11 +249,11 @@ class SettingsDialog(BaseDialog):
         logger.debug("Fixing black screen")
 
         kind, message = base_fixes.fix_black_screen(self.config.game_install_dir)
-        if kind == "error":
+        if kind == ResultKind.ERROR:
             show_error_dialog(self, self.tr("Error"), self.tr(message))
-        elif kind == "success":
+        elif kind == ResultKind.SUCCESS:
             show_success_dialog(self, self.tr("Success"), self.tr(message))
-        elif kind == "warning":
+        elif kind == ResultKind.WARNING:
             show_warning_dialog(self, self.tr("Warning"), self.tr(message))
         else:
             logger.warning(f"Unknown result kind: {kind}")
@@ -261,11 +261,11 @@ class SettingsDialog(BaseDialog):
     def fix_vanilla_tweaks_alt_tab(self):
         logger.debug("Fixing VanillaTweaks Alt-Tab")
         kind, message = vanilla_tweaks.fix_alt_tab(self.config.game_install_dir)
-        if kind == "error":
+        if kind == ResultKind.ERROR:
             show_error_dialog(self, self.tr("Error"), message)
-        elif kind == "success":
+        elif kind == ResultKind.SUCCESS:
             show_success_dialog(self, self.tr("Success"), message)
-        elif kind == "warning":
+        elif kind == ResultKind.WARNING:
             show_warning_dialog(self, self.tr("Warning"), message)
     
     def sizeHint(self):

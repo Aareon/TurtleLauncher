@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 from loguru import logger
+from turtlelauncher.utils.errors import ResultKind
 
 
 def clear_addon_settings(game_install_dir: Path):
@@ -10,7 +11,7 @@ def clear_addon_settings(game_install_dir: Path):
     if wtf_path.exists():
         if not any(wtf_path.iterdir()):
             logger.warning("WTF folder is empty")
-            return "Warning", "The WTF folder is already empty."
+            return ResultKind.WARNING, "The WTF folder is already empty."
 
         try:
             for item in wtf_path.iterdir():
@@ -19,13 +20,13 @@ def clear_addon_settings(game_install_dir: Path):
                 elif item.is_dir():
                     shutil.rmtree(item)
             logger.info("Successfully cleared addon settings")
-            return "Success", "Addon settings have been cleared successfully."
+            return ResultKind.SUCCESS, "Addon settings have been cleared successfully."
         except Exception as e:
             logger.error(f"Error clearing addon settings: {str(e)}")
-            return "Error", f"An error occurred while clearing addon settings: {str(e)}"
+            return ResultKind.ERROR, f"An error occurred while clearing addon settings: {str(e)}"
     else:
         logger.warning("WTF folder not found in the game installation directory")
-        return "Warning", "WTF folder not found in the game installation directory."
+        return ResultKind.WARNING, "WTF folder not found in the game installation directory."
 
 
 def fix_black_screen(game_install_dir: Path):
@@ -34,7 +35,7 @@ def fix_black_screen(game_install_dir: Path):
     if not wtf_config_path.exists():
         error_message = "Config.wtf file not found. Unable to apply Black Screen fix."
         logger.error(error_message)
-        return "Error", error_message
+        return ResultKind.ERROR, error_message
 
     try:
         with open(wtf_config_path, 'r') as file:
@@ -67,13 +68,13 @@ def fix_black_screen(game_install_dir: Path):
             with open(wtf_config_path, 'w') as file:
                 file.writelines(lines)
             logger.info("Successfully applied Black Screen fix")
-            return "Success", "Black Screen fix has been applied successfully."
+            return ResultKind.SUCCESS, "Black Screen fix has been applied successfully."
         else:
             logger.info("Black Screen fix was already applied")
-            return "Info", "Black Screen fix was already applied. No changes were needed."
+            return ResultKind.INFO, "Black Screen fix was already applied. No changes were needed."
 
     except Exception as e:
         error_message = f"An error occurred while applying Black Screen fix: {e}"
         logger.error(error_message)
-        return "Error", error_message
+        return ResultKind.ERROR, error_message
     
