@@ -209,38 +209,38 @@ class LauncherWidget(QWidget):
     
     @Slot()
     def on_verification_started(self):
-        self.progress_label.setText("Verifying download...")
+        self.progress_label.setText(self.tr("Verifying download..."))
         self.speed_label.setText("")
         self.progress_bar.setValue(0)
     
     @Slot(bool)
     def on_verification_completed(self, is_valid):
         if is_valid:
-            self.progress_label.setText("Verification successful. Preparing extraction...")
+            self.progress_label.setText(self.tr("Verification successful. Preparing extraction..."))
             self.progress_bar.setValue(100)
         else:
-            self.progress_label.setText("Verification failed. Please try again.")
+            self.progress_label.setText(self.tr("Verification failed. Please try again."))
             self.progress_bar.setValue(0)
             self.progress_bar.stop_particle_effect()
-            self.error_occurred.emit("Checksum verification failed")
+            self.error_occurred.emit(self.tr("Checksum verification failed"))
 
     @Slot(str)
     def on_extraction_completed(self, extracted_folder):
-        self.progress_label.setText("Installation completed!")
+        self.progress_label.setText(self.tr("Installation completed!"))
         self.speed_label.hide()
         self.progress_bar.setValue(100)
         self.progress_bar.stop_particle_effect()
         self.progress_bar.hide()  # Hide progress bar after extraction is complete
-        self.action_button.setText("Play")  # Change the action button text to "Play"
+        self.action_button.setText(self.tr("Play"))  # Change the action button text to "Play"
         self.is_downloading = False
         self.extraction_completed.emit(extracted_folder)
 
     @Slot(str)
     def on_error(self, error_message):
-        self.progress_label.setText(f"Error: {error_message}")
+        self.progress_label.setText(self.tr("Error: {}").format(error_message))
         self.speed_label.hide()  # Hide speed label on error
         self.progress_bar.stop_particle_effect()
-        self.action_button.setText("Download")
+        self.action_button.setText(self.tr("Download"))
         self.is_downloading = False
         self.error_occurred.emit(error_message)
     
@@ -378,13 +378,13 @@ class LauncherWidget(QWidget):
                 
                 stdout, stderr = self.game_process.communicate()
                 if return_code != 0 or stderr:
-                    error_message = f"Game process ended unexpectedly. Return code: {return_code}\n"
+                    error_message = self.tr("Game process ended unexpectedly. Return code: {}\n").format(return_code)
                     if stderr:
-                        error_message += f"Error output: {stderr.decode('utf-8', errors='replace')}"
+                        error_message += self.tr("Error output: {}").format(stderr.decode('utf-8', errors='replace'))
                     logger.error(error_message)
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog(self.master, "Game Execution Error", error_message)
+                    show_error_dialog(self.master, self.tr("Game Execution Error"), error_message)
                 else:
                     logger.info("Game process has ended normally")
 
@@ -403,28 +403,32 @@ class LauncherWidget(QWidget):
                     self.config.selected_binary = None
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog(self.master, "Binary Not Found", f"The previously selected game binary was not found:\n{binary_path}\n\nPlease select a new binary.")
+                    show_error_dialog(self.master, self.tr("Binary Not Found"), self.tr("The previously selected game binary was not found:\n{}\n\nPlease select a new binary.").format(binary_path))
                     return False
                 
                 if not os.access(binary_path, os.R_OK):
                     logger.warning(f"Selected binary is not readable: {binary_path}")
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog(self.master, "Permission Error", f"The selected game binary is not readable:\n{binary_path}\n\nPlease check the file permissions.")
+                    show_error_dialog(self.master, self.tr("Permission Error"), self.tr("The selected game binary is not readable:\n{}\n\nPlease check the file permissions.").format(binary_path))
                     return False
                 
                 if not os.access(binary_path, os.X_OK) and not sys.platform.startswith('win'):
                     logger.warning(f"Selected binary is not executable: {binary_path}")
                     if self.game_launch_dialog:
                         self.game_launch_dialog.close()
-                    show_error_dialog(self.master, "Permission Error", f"The selected game binary is not executable:\n{binary_path}\n\nPlease check the file permissions.")
+                    show_error_dialog(self.master, self.tr("Permission Error"), self.tr("The selected game binary is not executable:\n{}\n\nPlease check the file permissions.").format(binary_path))
                     return False
                 
                 logger.info(f"Selected binary is valid: {binary_path}")
                 return True
             except Exception as e:
                 logger.error(f"Error validating binary: {e}")
-                show_error_dialog(self.master, "Validation Error", f"An error occurred while validating the game binary:\n{e}\n\nPlease try selecting the binary again.")
+                show_error_dialog(
+                    self.master,
+                    self.tr("Validation Error"),
+                    self.tr("An error occurred while validating the game binary:\n{}\n\nPlease try selecting the binary again.").format(e)
+                )
                 return False
         else:
             logger.info("No binary currently selected")
@@ -435,7 +439,7 @@ class LauncherWidget(QWidget):
             logger.warning("No binary selected for execution")
             if self.game_launch_dialog:
                 self.game_launch_dialog.close()
-            show_error_dialog(self.master, "Execution Error", "No game binary has been selected. Please select a binary first.")
+            show_error_dialog(self.master, self.tr("Execution Error"), self.tr("No game binary has been selected. Please select a binary first."))
             return
         
         logger.info(f"Should clear cache on launch: {self.config.clear_cache_on_launch}")
@@ -445,15 +449,17 @@ class LauncherWidget(QWidget):
             if result_kind == "success":
                 logger.info("Cache cleared successfully")
             elif result_kind == "warning":
-                logger.warning(f"Cache already empty: {message}")
+                error_message = self.tr("Cache already empty: {}").format(message)
+                logger.warning(error_message)
                 if self.game_launch_dialog:
                     self.game_launch_dialog.close()
-                show_error_dialog(self.master, "Cache Clear Warning", f"Cache is already empty: {message}")
+                show_error_dialog(self.master, self.tr("Cache Clear Warning"), error_message)
             elif result_kind == "error":
-                logger.error(f"Failed to clear cache: {message}")
+                error_message = self.tr("Failed to clear cache: {}").format(message)
+                logger.error(error_message)
                 if self.game_launch_dialog:
                     self.game_launch_dialog.close()
-                show_error_dialog(self.master, "Cache Clear Error", f"Failed to clear the cache: {message}")
+                show_error_dialog(self.master, self.tr("Cache Clear Error"), error_message)
                 return
 
         binary_path = Path(self.config.selected_binary)
@@ -499,11 +505,11 @@ class LauncherWidget(QWidget):
             if self.config.minimize_on_launch:
                 self.master.showMinimized()
         except Exception as e:
-            error_message = f"Failed to execute the selected binary: {str(e)}"
+            error_message = self.tr("Failed to execute the selected binary: {}").format(str(e))
             logger.error(error_message, exc_info=True)
             if self.game_launch_dialog:
                 self.game_launch_dialog.close()
-            show_error_dialog(self.master, "Execution Error", error_message)
+            show_error_dialog(self.master, self.tr("Execution Error"), error_message)
     
     @Slot(str)
     def on_binary_selected(self, selected_binary):
