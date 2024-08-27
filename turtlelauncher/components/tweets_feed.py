@@ -45,7 +45,7 @@ class TweetsFeed(QWidget):
         title_layout = QVBoxLayout(title_container)
         title_layout.setContentsMargins(0, 0, 0, 0)
 
-        title = GradientLabel("Latest Tweets", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        title = GradientLabel(self.tr("Latest Tweets"), QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont(font_family, 18, QFont.Bold))
         title.setStyleSheet("padding: 15px; background: transparent;")
