@@ -1,6 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+# turtlelauncher/widgets/video_player.py
+
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import Signal, Qt, QSize, QUrl
+from PySide6.QtCore import Signal, QSize, QUrl
 from PySide6.QtGui import QColor
 from loguru import logger
 
@@ -19,12 +21,14 @@ class VideoWidget(QWidget):
 
         self.web_view = QWebEngineView(self)
         self.web_view.setAutoFillBackground(False)
+
+        self.web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # Set page and background color to transparent
         page = self.web_view.page()
         page.setBackgroundColor(QColor(0, 0, 0, 0))
         
-        layout.addWidget(self.web_view)
+        layout.addWidget(self.web_view, stretch=1)
         self.setLayout(layout)
 
     def load_video(self, video_url):
@@ -56,7 +60,7 @@ class VideoWidget(QWidget):
             </style>
         </head>
         <body>
-            <iframe src="{video_url}" allowfullscreen></iframe>
+            <iframe src="{video_url}" allowfullscreen style="position: relative;"></iframe>
         </body>
         </html>
         """
@@ -69,12 +73,8 @@ class VideoWidget(QWidget):
             logger.error("Failed to load video iframe")
             self.error_occurred.emit("Failed to load video")
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.web_view.setGeometry(self.rect())
-
     def sizeHint(self):
-        return QSize(640, 360)
+        return QSize(1280, 1024)
 
     def update_size(self):
         self.resizeEvent(None)

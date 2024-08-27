@@ -74,7 +74,7 @@ class FeaturedContent(QFrame):
         self.title_label.setStyleSheet("background-color: transparent;")
         self.title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.title_label.setMinimumWidth(200)
-        self.layout.addWidget(self.title_label)
+        #self.layout.addWidget(self.title_label)
 
         self.setStyleSheet("""
             QLabel { background-color: transparent; }
@@ -103,7 +103,7 @@ class FeaturedContent(QFrame):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.adjust_layout()
+        #self.adjust_layout()
     
     def showEvent(self, event):
         super().showEvent(event)
@@ -111,7 +111,8 @@ class FeaturedContent(QFrame):
 
     def adjust_layout(self):
         if isinstance(self.video_widget, TurtleTVWidget):
-            self.video_widget.adjust_video_size()
+            #self.video_widget.adjust_video_size()
+            pass
 
     def sizeHint(self):
         return QSize(640, 480)  # Suggested size, can be adjusted as needed
