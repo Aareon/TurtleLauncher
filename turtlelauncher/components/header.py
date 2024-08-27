@@ -1,14 +1,7 @@
 from PySide6.QtWidgets import QHBoxLayout, QFrame
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt
-from pathlib import Path
-from loguru import logger
 from turtlelauncher.widgets.icon_button import IconButton
+from turtlelauncher.utils.globals import IMAGES
 
-HERE = Path(__file__).parent
-ASSETS = HERE.parent.parent / "assets"
-DATA = ASSETS / "data"
-IMAGES = ASSETS / "images"
 
 class HeaderWidget(QFrame):
     def __init__(self):
