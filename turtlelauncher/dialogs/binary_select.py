@@ -14,7 +14,7 @@ class BinarySelectionDialog(BaseDialog):
     binary_selected = Signal(str)
 
     def __init__(self, config, parent=None):
-        super().__init__(parent, title="Select Turtle WoW Binary", icon_path=IMAGES / "turtle_wow_icon.png")
+        super().__init__(parent, title=self.tr("Select Turtle WoW Binary"), icon_path=IMAGES / "turtle_wow_icon.png")
         self.config = config
 
         self.setup_binary_list()
