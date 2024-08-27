@@ -25,9 +25,6 @@ class TurtleTVWidget(QFrame):
         self.video_player.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.layout.addWidget(self.video_player, alignment=Qt.AlignTop)
 
-        # Optionally remove the stretch if you want the title layout to be closer
-        #self.layout.addStretch()  # Comment this out to remove the extra space
-
         self.error_label = QLabel(self)
         self.error_label.setAlignment(Qt.AlignCenter)
         self.error_label.setStyleSheet("""
@@ -130,16 +127,6 @@ class TurtleTVWidget(QFrame):
         """)
         button.setFixedSize(QSize(40, 40))
         return button
-
-    #def resizeEvent(self, event):
-        #super().resizeEvent(event)
-        #self.adjust_layout()
-
-    #def adjust_layout(self):
-        #video_rect = self.video_player.geometry()
-
-        # Adjust error label to cover the video player
-        #self.error_label.setGeometry(video_rect)
 
     def sizeHint(self):
         return QSize(16 * 40, 9 * 40)  # 16:9 aspect ratio

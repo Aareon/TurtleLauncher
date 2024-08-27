@@ -68,28 +68,30 @@ class FeaturedContent(QFrame):
         self.stacked_widget.setCurrentWidget(self.video_widget if self.video_widget else self.featured_image_label)
 
         # Title Label
-        self.title_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.title_label.setStyleSheet("background-color: transparent;")
-        self.title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.title_label.setMinimumWidth(200)
+        #self.title_label = GradientLabel("", QColor(255, 215, 0), QColor(255, 105, 180), intensity=2.0, vertical=True)
+        #self.title_label.setAlignment(Qt.AlignCenter)
+        #self.title_label.setFont(QFont("Arial", 12, QFont.Bold))
+        #self.title_label.setStyleSheet("background-color: transparent;")
+        #self.title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        #self.title_label.setMinimumWidth(200)
         #self.layout.addWidget(self.title_label)
 
         self.setStyleSheet("""
             QLabel { background-color: transparent; }
         """)
         
-        if isinstance(self.video_widget, TurtleTVWidget):
-            self.video_widget.video_changed.connect(self.update_description)
+        # if isinstance(self.video_widget, TurtleTVWidget):
+            # self.video_widget.video_changed.connect(self.update_description)
         
-        self.update_description(self.video_widget.current_index if self.video_widget else 0)
+        # self.update_description(self.video_widget.current_index if self.video_widget else 0)
 
         logger.debug(f"FeaturedContent initialized with content_type: {content_type}")
 
     def update_description(self, index):
         if isinstance(self.video_widget, TurtleTVWidget):
-            self.title_label.setText(self.video_widget.videos[index]["title"])
+            # Now handled in `TurtleTVWidget`
+            #self.title_label.setText(self.video_widget.videos[index]["title"])
+            pass
         logger.debug(f"Updated description for video index: {index}")
 
     def paintEvent(self, event):
@@ -103,16 +105,9 @@ class FeaturedContent(QFrame):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        #self.adjust_layout()
     
     def showEvent(self, event):
         super().showEvent(event)
-        self.adjust_layout()
-
-    def adjust_layout(self):
-        if isinstance(self.video_widget, TurtleTVWidget):
-            #self.video_widget.adjust_video_size()
-            pass
 
     def sizeHint(self):
-        return QSize(640, 480)  # Suggested size, can be adjusted as needed
+        return QSize(640, 480)  # Suggested size
