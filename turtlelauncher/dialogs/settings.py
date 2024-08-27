@@ -7,10 +7,9 @@ from turtlelauncher.utils.game_utils import clear_cache
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.generic_confirmation import GenericConfirmationDialog
 from turtlelauncher.dialogs import show_error_dialog, show_success_dialog, show_warning_dialog
-from turtlelauncher.utils.fixes import vanilla_tweaks
+from turtlelauncher.utils.fixes import vanilla_tweaks, base_fixes
 from pathlib import Path
 import os
-import shutil
 
 
 class SettingsDialog(BaseDialog):
@@ -160,28 +159,13 @@ class SettingsDialog(BaseDialog):
         
         if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
             logger.debug("Clearing addon settings")
-            wtf_path = Path(self.config.game_install_dir) / "WTF"
-            
-            if wtf_path.exists():
-                if not any(wtf_path.iterdir()):
-                    logger.warning("WTF folder is empty")
-                    show_warning_dialog(self, self.tr("Warning"), self.tr("The WTF folder is already empty."))
-                    return
-
-                try:
-                    for item in wtf_path.iterdir():
-                        if item.is_file():
-                            item.unlink()
-                        elif item.is_dir():
-                            shutil.rmtree(item)
-                    logger.info("Successfully cleared addon settings")
-                    show_success_dialog(self, self.tr("Success"), self.tr("Addon settings have been cleared successfully."))
-                except Exception as e:
-                    logger.error(f"Error clearing addon settings: {str(e)}")
-                    show_error_dialog(self, self.tr("Error"), self.tr("An error occurred while clearing addon settings: {}").format(str(e)))
-            else:
-                logger.warning("WTF folder not found in the game installation directory")
-                show_warning_dialog(self, self.tr("Warning"), self.tr("WTF folder not found in the game installation directory."))
+            result_kind, result_message = base_fixes.clear_addon_settings(self.config.game_install_dir)
+            if result_kind == "warning":
+                show_warning_dialog(self, self.tr(result_kind), self.tr(result_message))
+            elif result_kind == "success":
+                show_success_dialog(self, self.tr(result_kind), self.tr(result_message))
+            elif result_kind == "error":
+                show_error_dialog(self, self.tr(result_kind), self.tr(result_message))
         else:
             logger.debug("Addon settings clearing cancelled by user")
 
@@ -221,36 +205,6 @@ class SettingsDialog(BaseDialog):
     def clear_chat_cache(self):
         logger.debug("Clearing chat cache. TODO!")
         return
-        
-        custom_styles = {
-            "#message-label-0": {
-                "color": "#FFD700"
-            },
-            "#message-label-1": {
-                "color": "#FF69B4"
-            }
-        }
-        
-        confirmation_dialog = GenericConfirmationDialog(
-            self,
-            title="Confirm Action",
-            message=["Are you sure you want to clear the cache?", "This action cannot be undone."],
-            confirm_text="Yes, clear",
-            cancel_text="No, cancel",
-            icon_path=Path(__file__).parent.parent.parent / "assets" / "images" / "turtle_wow_icon.png",
-            custom_styles=custom_styles
-        )
-        
-        if confirmation_dialog.exec() == QDialog.DialogCode.Accepted:
-            kind, message = clear_cache(self.config.game_install_dir)
-            if kind == "warning":
-                show_warning_dialog(self, "Warning", message)
-            elif kind == "success":
-                show_success_dialog(self, "Success", message)
-            elif kind == "error":
-                show_error_dialog(self, "Error", message)
-        else:
-            logger.debug("Cache clearing cancelled by user")
 
     def open_install_directory(self):
         logger.debug("Opening install directory")
@@ -293,54 +247,16 @@ class SettingsDialog(BaseDialog):
     
     def fix_black_screen(self):
         logger.debug("Fixing black screen")
-        config_wtf_path = Path(self.config.game_install_dir) / "WTF" / "Config.wtf"
 
-        if not config_wtf_path.exists():
-            error_message = self.tr("Config.wtf file not found. Unable to apply Black Screen fix.")
-            logger.error(error_message)
-            show_error_dialog(self, title=self.tr("Error"), message=error_message)
-            return
-
-        try:
-            with open(config_wtf_path, 'r') as file:
-                lines = file.readlines()
-
-            gxWindow_found = False
-            gxMaximize_found = False
-            modified = False
-
-            for i, line in enumerate(lines):
-                if line.startswith('SET gxWindow '):
-                    gxWindow_found = True
-                    if not line.strip().endswith('"1"'):
-                        lines[i] = 'SET gxWindow "1"\n'
-                        modified = True
-                elif line.startswith('SET gxMaximize '):
-                    gxMaximize_found = True
-                    if not line.strip().endswith('"1"'):
-                        lines[i] = 'SET gxMaximize "1"\n'
-                        modified = True
-
-            if not gxWindow_found:
-                lines.append('SET gxWindow "1"\n')
-                modified = True
-            if not gxMaximize_found:
-                lines.append('SET gxMaximize "1"\n')
-                modified = True
-
-            if modified:
-                with open(config_wtf_path, 'w') as file:
-                    file.writelines(lines)
-                logger.info("Successfully applied Black Screen fix")
-                show_success_dialog(self, self.tr("Success"), self.tr("Black Screen fix has been applied successfully."))
-            else:
-                logger.info("Black Screen fix was already applied")
-                show_warning_dialog(self, self.tr("Info"), self.tr("Black Screen fix was already applied. No changes were needed."))
-
-        except Exception as e:
-            error_message = self.tr("An error occurred while applying Black Screen fix: {}").format(str(e))
-            logger.error(error_message)
-            show_error_dialog(self, title=self.tr("Error"), message=error_message)
+        kind, message = base_fixes.fix_black_screen(self.config.game_install_dir)
+        if kind == "error":
+            show_error_dialog(self, self.tr("Error"), self.tr(message))
+        elif kind == "success":
+            show_success_dialog(self, self.tr("Success"), self.tr(message))
+        elif kind == "warning":
+            show_warning_dialog(self, self.tr("Warning"), self.tr(message))
+        else:
+            logger.warning(f"Unknown result kind: {kind}")
 
     def fix_vanilla_tweaks_alt_tab(self):
         logger.debug("Fixing VanillaTweaks Alt-Tab")
