@@ -10,9 +10,9 @@ class GenericConfirmationDialog(BaseDialog):
     def setup_buttons(self, confirm_text, cancel_text):
         button_layout = QHBoxLayout()
         
-        self.confirm_button = self.create_button(confirm_text, self.accept, button_layout, "confirm-button")
+        self.confirm_button = self.create_button(self.tr(confirm_text), self.accept, button_layout, "confirm-button")
         
         if cancel_text:
-            self.cancel_button = self.create_button(cancel_text, self.reject, button_layout, "cancel-button")
+            self.cancel_button = self.create_button(self.tr(cancel_text), self.reject, button_layout, "cancel-button")
 
         self.content_layout.addLayout(button_layout)
