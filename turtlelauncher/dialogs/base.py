@@ -7,9 +7,9 @@ from turtlelauncher.widgets.tabs import CustomTabWidget
 from turtlelauncher.utils.color import parse_color
 
 class BaseDialog(QDialog):
-    setting_changed = Signal(str, bool)
-
-    def __init__(self, parent=None, title="", message="", icon_path=None, custom_styles=None, modal=True, flags=Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint):
+    def __init__(self, parent=None, title="", message="", icon_path=None, custom_styles=None, modal=True, resizable=False, flags=Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint):
+        if resizable:
+            flags |= Qt.WindowType.WindowMaximizeButtonHint
         super().__init__(parent, flags)
         self.setWindowTitle(title)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -36,7 +36,19 @@ class BaseDialog(QDialog):
 
         self.setStyleSheet(self.generate_stylesheet(custom_styles))
 
+        if resizable:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
+            self.maximize_button = QPushButton("□", self)
+            self.maximize_button.setObjectName("maximize-button")
+            self.maximize_button.clicked.connect(self.toggle_maximize)
+            self.title_bar_layout.addWidget(self.maximize_button)
+
+
     def setup_ui(self, title, message, icon_path):
+        self.title_bar_layout = QHBoxLayout()
+        self.title_bar_layout.setContentsMargins(10, 10, 10, 0)
+        self.content_layout.addLayout(self.title_bar_layout)
+
         self.add_close_button()
         self.add_icon(icon_path)
         self.add_title(title)
@@ -52,14 +64,16 @@ class BaseDialog(QDialog):
             self.settings[setting_name].setChecked(value)
 
     def add_close_button(self):
-        close_button = QPushButton("×", self.content_widget)
+        close_button = QPushButton("×", self)
         close_button.setObjectName("close-button")
         close_button.clicked.connect(self.reject)
-        
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(close_button)
-        self.content_layout.insertLayout(0, button_layout)
+        self.title_bar_layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
+
+    def toggle_maximize(self):
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
 
     def add_icon(self, icon_path):
         if icon_path:
