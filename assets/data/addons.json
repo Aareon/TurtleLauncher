@@ -1,0 +1,52 @@
+{
+  "addons": [
+    {
+      "id": 1,
+      "name": "_AntInvite",
+      "description": "Block invitations from characters that are under level 15",
+      "link": "https://github.com/Kiiruaa/_AntInvite",
+      "category": "Utility",
+      "enabled": false
+    },
+    {
+      "id": 2,
+      "name": "_AutoBG",
+      "description": "Auto-queue, join, leave and battlegrounds + instant spirit release",
+      "link": "https://github.com/EinBaum/_AutoBG",
+      "category": "Utility",
+      "enabled": false
+    },
+    {
+      "id": 3,
+      "name": "aBindings",
+      "description": "Direct macrotext-to-key bindings",
+      "link": "https://gitlab.com/aead/aBindings",
+      "category": "Utility",
+      "enabled": false
+    },
+    {
+      "id": 4,
+      "name": "Abraxas",
+      "description": "Warlock Helper",
+      "link": "https://github.com/xorann/Abraxas",
+      "category": "Class Specific",
+      "enabled": false
+    },
+    {
+      "id": 5,
+      "name": "ABreathBeneath",
+      "description": "A 'reskin' of Blizzard's nameplates",
+      "link": "https://gitlab.com/aead/aChat",
+      "category": "User Interface",
+      "enabled": false
+    },
+    {
+      "id": 6,
+      "name": "Accountant",
+      "description": "Tracks your incoming / outgoing cash",
+      "link": "https://github.com/wow-vanilla-addons/Accountant",
+      "category": "Utility",
+      "enabled": false
+    }
+  ]
+}

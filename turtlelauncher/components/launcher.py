@@ -17,6 +17,7 @@ from turtlelauncher.dialogs import show_error_dialog
 from turtlelauncher.dialogs.stop_download import StopDownloadDialog
 from turtlelauncher.dialogs.binary_select import BinarySelectionDialog
 from turtlelauncher.dialogs.game_launch import GameLaunchDialog
+from turtlelauncher.dialogs.addons_manager import AddonManagerDialog
 
 
 class LauncherWidget(QWidget):
@@ -26,6 +27,7 @@ class LauncherWidget(QWidget):
     download_button_clicked = Signal()
     play_button_clicked = Signal()
     settings_button_clicked = Signal()
+    mods_button_clicked = Signal()
 
     def __init__(self, parent, check_game_installation_callback, config):
         super().__init__()
@@ -116,12 +118,14 @@ class LauncherWidget(QWidget):
         button_layout.setSpacing(10)
 
         self.settings_button = ImageButton("PurpleButton.png", "", "Alagard")
+        self.mods_button = ImageButton("PurpleButton.png", "", "Alagard")
         
         # Modify the play_button to be a download/stop/play button
         self.action_button = ImageButton("PurpleButton.png", "", "Alagard")
         self.action_button.clicked.connect(self.on_action_button_clicked)
 
         button_layout.addWidget(self.settings_button)
+        button_layout.addWidget(self.mods_button)
         button_layout.addStretch()
         button_layout.addWidget(self.action_button)
 
@@ -139,6 +143,7 @@ class LauncherWidget(QWidget):
 
         # Connect the settings button click event to the new signal
         self.settings_button.clicked.connect(self.settings_button_clicked.emit)
+        self.mods_button.clicked.connect(self.on_mods_button_clicked)
 
         self.progress_bar.hide()
         self.progress_label.hide()
@@ -153,6 +158,7 @@ class LauncherWidget(QWidget):
         self.speed_label.setText(self.tr("0 MB/s"))
         self.total_size_label.setText(self.tr("Total size: 0 MB"))
         self.settings_button.setText(self.tr("Settings"))
+        self.mods_button.setText(self.tr("Mods"))
         self.update_action_button_state()
 
     def paintEvent(self, event):
@@ -323,6 +329,10 @@ class LauncherWidget(QWidget):
         self.progress_label.show()
         self.speed_label.show()
         self.total_size_label.show()
+    
+    def on_mods_button_clicked(self):
+        addons_manager = AddonManagerDialog(self.config, parent=self.master)
+        addons_manager.exec()
     
     @Slot(str)
     def set_total_file_size(self, total_size_str):
